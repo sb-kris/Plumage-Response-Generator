@@ -135,95 +135,125 @@
       }
 
       /* ========================================================================
-         Top bar (fixed)
+         Full-width site nav — sticky top bar with brand on the left and
+         the theme toggle pill on the right. Glass background blurs the
+         page content underneath without competing for attention.
          ======================================================================== */
-      .top-bar {
-        position: fixed;
-        inset: 14px 0 auto 0;
-        z-index: 50;
-        padding: 0 clamp(16px, 3vw, 32px);
-        display: flex;
-        justify-content: center;
-        pointer-events: none;
+      .site-nav {
+        position: sticky;
+        top: 0;
+        z-index: 60;
+        border-bottom: 1px solid hsl(var(--card-border) / 0.55);
+        background: hsl(var(--bg) / 0.78);
+        backdrop-filter: blur(18px) saturate(140%);
+        -webkit-backdrop-filter: blur(18px) saturate(140%);
       }
-      /* Glass capsule that floats below the top edge. Carries the
-         logo on the left, theme toggle on the right. Backdrop blur +
-         subtle purple-tinted shadow ties it to the page aesthetic
-         without competing for attention. */
-      .top-bar__inner {
-        pointer-events: auto;
+      .site-nav__inner {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 12px clamp(20px, 4vw, 48px);
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 24px;
-        width: 100%;
-        max-width: 720px;
-        padding: 8px 14px 8px 16px;
-        border-radius: 999px;
-        background: hsl(var(--bg-elev) / 0.55);
-        border: 1px solid hsl(var(--card-border) / 0.7);
-        backdrop-filter: blur(18px) saturate(140%);
-        -webkit-backdrop-filter: blur(18px) saturate(140%);
-        box-shadow:
-          inset 0 1px 0 hsl(var(--fg) / 0.06),
-          0 1px 2px hsl(0 0% 0% / 0.2),
-          0 16px 40px -20px hsl(var(--brand-3) / 0.35);
-        transition: background 200ms ease, border-color 200ms ease;
+        gap: 16px;
       }
-      :root[data-theme="light"] .top-bar__inner {
-        background: hsl(var(--bg) / 0.7);
-        box-shadow:
-          inset 0 1px 0 hsl(0 0% 100% / 0.6),
-          0 1px 2px hsl(var(--brand-3) / 0.08),
-          0 18px 40px -22px hsl(var(--brand-3) / 0.22);
-      }
-      .feather-mark {
-        display: flex;
+      /* Brand cluster — gradient-tinted icon container + stacked text. */
+      .site-nav__brand {
+        display: inline-flex;
         align-items: center;
-        gap: 12px;
-        font-weight: 600;
-        font-size: 15px;
-        letter-spacing: -0.01em;
+        gap: 14px;
+        text-decoration: none;
+        color: inherit;
         transition: transform 200ms ease;
       }
-      .feather-mark:hover {
+      .site-nav__brand:hover {
         transform: translateY(-1px);
       }
-      .feather-mark img {
-        height: 36px;
-        width: 36px;
-        border-radius: 9px;
-      }
-      .theme-toggle {
-        appearance: none;
-        border: 1px solid hsl(var(--border));
-        background: hsl(var(--bg-elev) / 0.7);
-        color: hsl(var(--fg));
-        width: 36px;
-        height: 36px;
-        border-radius: 9px;
-        cursor: pointer;
-        backdrop-filter: blur(12px);
+      .site-nav__icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, var(--brand-1), var(--brand-3));
         display: grid;
         place-items: center;
-        transition: border-color 200ms ease, background 200ms ease;
+        overflow: hidden;
+        box-shadow:
+          inset 0 1px 0 hsl(0 0% 100% / 0.15),
+          0 4px 12px -4px hsl(var(--brand-3) / 0.55);
       }
-      .theme-toggle:hover {
-        border-color: var(--accent);
-        background: var(--accent-soft);
+      .site-nav__icon img {
+        width: 30px;
+        height: 30px;
+        object-fit: contain;
+        /* Most flock-logo.svg variants render fine on the gradient.
+           If a future logo needs to be lightened to read on the
+           gradient, a `filter: brightness(0) invert(1)` here would
+           knock it pure white — left out today to preserve the
+           logo's own colour identity. */
       }
-      .theme-toggle svg {
-        width: 16px;
-        height: 16px;
+      .site-nav__text {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.1;
       }
-      .theme-toggle .icon-sun {
+      .site-nav__name {
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.012em;
+        color: hsl(var(--fg));
+      }
+      .site-nav__sub {
+        font-family: "Geist Mono", monospace;
+        font-size: 10.5px;
+        font-weight: 500;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: hsl(var(--muted));
+        margin-top: 3px;
+      }
+      /* Theme pill — icon + label inside a glass capsule. */
+      .site-nav__theme {
+        appearance: none;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        color: hsl(var(--fg));
+        background: hsl(var(--bg-elev) / 0.6);
+        border: 1px solid hsl(var(--card-border) / 0.7);
+        border-radius: 10px;
+        padding: 7px 13px 7px 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        transition: border-color 200ms ease, background 200ms ease, transform 200ms ease;
+      }
+      .site-nav__theme:hover {
+        border-color: hsl(var(--brand-2) / 0.5);
+        background: hsl(var(--bg-elev) / 0.85);
+      }
+      .site-nav__theme svg {
+        width: 14px;
+        height: 14px;
+        opacity: 0.85;
+      }
+      .site-nav__theme .icon-sun {
         display: none;
       }
-      :root[data-theme="light"] .theme-toggle .icon-sun {
+      :root[data-theme="light"] .site-nav__theme .icon-sun {
         display: block;
       }
-      :root[data-theme="light"] .theme-toggle .icon-moon {
+      :root[data-theme="light"] .site-nav__theme .icon-moon {
         display: none;
+      }
+      /* Tighter brand cluster on narrow screens — drop the subtitle if
+         it'd wrap and squeeze the pill off-screen. */
+      @media (max-width: 480px) {
+        .site-nav__sub {
+          display: none;
+        }
       }
 
       /* ========================================================================
@@ -412,7 +442,9 @@
         position: relative;
         z-index: 2;
         text-align: center;
-        padding-top: 60px;
+        /* No padding-top — the old 60px was breathing room below the
+           floating nav bar, which has been removed. The hero now centres
+           cleanly inside the 100vh section. */
       }
       .hero__title {
         /* Stacked two-line composition: gradient wordmark on top, italic
@@ -1416,22 +1448,27 @@
   </head>
   <body>
     <!-- ──────────────────────────────────────────────────────────────────────
-         Floating glass nav — Flock mark + theme toggle inside a centered
-         glass capsule. Sits 14px from the top so it visually breathes vs
-         the page edge.
+         Full-width sticky nav. Brand mark + name + subtitle on the left,
+         Theme toggle pill on the right. Glass background with a subtle
+         bottom border so the page beneath remains visible through it.
          ────────────────────────────────────────────────────────────────────── -->
-    <header class="top-bar">
-      <div class="top-bar__inner">
-        <a class="feather-mark" href="#hero">
-          <img src="/brand/flock-logo.svg" alt="Flock" />
-          <span>Flock</span>
+    <header class="site-nav">
+      <div class="site-nav__inner">
+        <a class="site-nav__brand" href="#hero">
+          <span class="site-nav__icon">
+            <img src="https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/flock-logo.svg" alt="" />
+          </span>
+          <span class="site-nav__text">
+            <span class="site-nav__name">Flock</span>
+            <span class="site-nav__sub">GTM Toolkit</span>
+          </span>
         </a>
         <button
-          class="theme-toggle"
+          class="site-nav__theme"
           type="button"
+          onclick="toggleTheme()"
           aria-label="Toggle theme"
           title="Toggle theme"
-          onclick="toggleTheme()"
         >
           <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
@@ -1440,6 +1477,7 @@
             <circle cx="12" cy="12" r="4" />
             <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
           </svg>
+          <span>Theme</span>
         </button>
       </div>
     </header>
@@ -1561,13 +1599,13 @@
 
           <a
             class="trio__card trio__card--sg"
-            href="https://surveysparrow-quick-importer-by-sujith.onrender.com/"
+            href="https://sites.google.com/surveysparrow.com/flock/survey-importer"
             target="_blank"
             rel="noreferrer"
           >
             <span class="trio__num">01</span>
             <div class="trio__icon">
-              <img src="/brand/weave-logo.svg" alt="" />
+              <img src="https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/weave-logo.svg" alt="" />
             </div>
             <h3>Weave</h3>
             <p>
@@ -1578,22 +1616,27 @@
             </p>
           </a>
 
-          <div class="trio__card trio__card--plumage">
+          <a
+            class="trio__card trio__card--plumage"
+            href="https://sites.google.com/surveysparrow.com/flock/response-generator"
+            target="_blank"
+            rel="noreferrer"
+          >
             <span class="trio__num">02</span>
             <div class="trio__icon">
-              <img src="/brand/plumage-logo.svg" alt="" />
+              <img src="https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/plumage-logo.svg" alt="" />
             </div>
             <h3>Plumage</h3>
             <p>
               Generate hundreds of persona-driven responses with realistic
               ratings, open-text, languages, and geography. Push them in.
             </p>
-          </div>
+          </a>
 
           <div class="trio__card trio__card--ss">
             <span class="trio__num">03</span>
             <div class="trio__icon">
-              <img src="/brand/surveysparrow-symbol.svg" alt="" />
+              <img src="https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/surveysparrow-symbol.svg" alt="" />
             </div>
             <h3>SurveySparrow</h3>
             <p>
@@ -1740,15 +1783,15 @@
             </div>
             <p class="llm-col__hint">Bulk runs. 95% of your responses live here.</p>
             <div class="llm-row">
-              <span class="llm-row__icon" style="mask: url(/brand/llms/anthropic.svg) center/contain no-repeat; -webkit-mask: url(/brand/llms/anthropic.svg) center/contain no-repeat;"></span>
+              <span class="llm-row__icon" style="mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/anthropic.svg) center/contain no-repeat; -webkit-mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/anthropic.svg) center/contain no-repeat;"></span>
               <div class="llm-row__name">Claude Haiku<small>Anthropic</small></div>
             </div>
             <div class="llm-row">
-              <span class="llm-row__icon" style="mask: url(/brand/llms/openai.svg) center/contain no-repeat; -webkit-mask: url(/brand/llms/openai.svg) center/contain no-repeat;"></span>
+              <span class="llm-row__icon" style="mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/openai.svg) center/contain no-repeat; -webkit-mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/openai.svg) center/contain no-repeat;"></span>
               <div class="llm-row__name">GPT-4o-mini / 4.1-mini<small>OpenAI</small></div>
             </div>
             <div class="llm-row">
-              <span class="llm-row__icon" style="mask: url(/brand/llms/google.svg) center/contain no-repeat; -webkit-mask: url(/brand/llms/google.svg) center/contain no-repeat;"></span>
+              <span class="llm-row__icon" style="mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/google.svg) center/contain no-repeat; -webkit-mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/google.svg) center/contain no-repeat;"></span>
               <div class="llm-row__name">Gemini Flash<small>Google</small></div>
             </div>
           </div>
@@ -1760,15 +1803,15 @@
             </div>
             <p class="llm-col__hint">When open-text needs to actually sound like the persona.</p>
             <div class="llm-row">
-              <span class="llm-row__icon" style="mask: url(/brand/llms/anthropic.svg) center/contain no-repeat; -webkit-mask: url(/brand/llms/anthropic.svg) center/contain no-repeat;"></span>
+              <span class="llm-row__icon" style="mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/anthropic.svg) center/contain no-repeat; -webkit-mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/anthropic.svg) center/contain no-repeat;"></span>
               <div class="llm-row__name">Claude Sonnet<small>Anthropic</small></div>
             </div>
             <div class="llm-row">
-              <span class="llm-row__icon" style="mask: url(/brand/llms/openai.svg) center/contain no-repeat; -webkit-mask: url(/brand/llms/openai.svg) center/contain no-repeat;"></span>
+              <span class="llm-row__icon" style="mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/openai.svg) center/contain no-repeat; -webkit-mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/openai.svg) center/contain no-repeat;"></span>
               <div class="llm-row__name">GPT-4o<small>OpenAI</small></div>
             </div>
             <div class="llm-row">
-              <span class="llm-row__icon" style="mask: url(/brand/llms/google.svg) center/contain no-repeat; -webkit-mask: url(/brand/llms/google.svg) center/contain no-repeat;"></span>
+              <span class="llm-row__icon" style="mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/google.svg) center/contain no-repeat; -webkit-mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/google.svg) center/contain no-repeat;"></span>
               <div class="llm-row__name">Gemini Pro<small>Google</small></div>
             </div>
           </div>
@@ -1780,15 +1823,15 @@
             </div>
             <p class="llm-col__hint">For the one open-text answer that ends up on the projector.</p>
             <div class="llm-row">
-              <span class="llm-row__icon" style="mask: url(/brand/llms/anthropic.svg) center/contain no-repeat; -webkit-mask: url(/brand/llms/anthropic.svg) center/contain no-repeat;"></span>
+              <span class="llm-row__icon" style="mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/anthropic.svg) center/contain no-repeat; -webkit-mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/anthropic.svg) center/contain no-repeat;"></span>
               <div class="llm-row__name">Claude Opus<small>Anthropic</small></div>
             </div>
             <div class="llm-row">
-              <span class="llm-row__icon" style="mask: url(/brand/llms/openai.svg) center/contain no-repeat; -webkit-mask: url(/brand/llms/openai.svg) center/contain no-repeat;"></span>
+              <span class="llm-row__icon" style="mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/openai.svg) center/contain no-repeat; -webkit-mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/openai.svg) center/contain no-repeat;"></span>
               <div class="llm-row__name">GPT-4.1 / GPT-4 Turbo<small>OpenAI</small></div>
             </div>
             <div class="llm-row">
-              <span class="llm-row__icon" style="mask: url(/brand/llms/google.svg) center/contain no-repeat; -webkit-mask: url(/brand/llms/google.svg) center/contain no-repeat;"></span>
+              <span class="llm-row__icon" style="mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/google.svg) center/contain no-repeat; -webkit-mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/google.svg) center/contain no-repeat;"></span>
               <div class="llm-row__name">Gemini 1.5 Pro<small>Google</small></div>
             </div>
           </div>
@@ -2008,12 +2051,12 @@
       <div class="container">
         <div class="footer__inner">
           <div class="footer__mark">
-            <img src="/brand/flock-logo.svg" alt="" />
+            <img src="https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/flock-logo.svg" alt="" />
             <span>Built for the SurveySparrow GTM team.</span>
           </div>
           <nav class="footer__links">
-            <a href="/generate">Plumage app →</a>
-            <a href="https://surveysparrow-quick-importer-by-sujith.onrender.com/" target="_blank" rel="noreferrer">Weave ↗</a>
+            <a href="https://sites.google.com/surveysparrow.com/flock/response-generator" target="_blank" rel="noreferrer">Plumage ↗</a>
+            <a href="https://sites.google.com/surveysparrow.com/flock/survey-importer" target="_blank" rel="noreferrer">Weave ↗</a>
             <a href="https://developers.surveysparrow.com" target="_blank" rel="noreferrer">SurveySparrow Docs</a>
           </nav>
         </div>
