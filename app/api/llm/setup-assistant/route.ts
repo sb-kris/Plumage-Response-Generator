@@ -116,12 +116,32 @@ export async function POST(req: NextRequest): Promise<NextResponse<SetupAssistan
   // mid-call; every other provider uses the standard JSON-mode call.
   const callLLM = providerSupportsSearch ? callAnthropicWithSearch : callLLMForJson;
 
-  const first = await callLLM({
+  let first = await callLLM({
     ...llmConfig,
     systemPrompt: prompt.systemPrompt,
     userPrompt: prompt.userPrompt,
     signal: req.signal,
   });
+
+  // If the FIRST call came back HTTP-OK (status 200) but the body didn't
+  // parse as JSON — the classic "model wrapped the JSON in prose" failure
+  // on the web-search path — do one stricter retry before giving up.
+  // (HTTP/transport/rate-limit failures, status !== 200, are NOT retried
+  // here; those are surfaced directly.) The extractJsonObject() recovery
+  // in callAnthropicWithSearch handles most of these, so this retry only
+  // fires in the rare case the model returns no recoverable object at all.
+  if (!first.ok && first.status === 200) {
+    const strictPrompt = `${prompt.userPrompt}
+
+---
+Your previous reply could not be parsed as JSON (${first.error ?? "parse error"}). Reply again with ONLY the JSON object — start with "{", end with "}", no commentary, no markdown fences, no preamble.`;
+    first = await callLLM({
+      ...llmConfig,
+      systemPrompt: prompt.systemPrompt,
+      userPrompt: strictPrompt,
+      signal: req.signal,
+    });
+  }
 
   if (!first.ok) {
     return NextResponse.json(

@@ -154,7 +154,8 @@ You MAY also add up to 4 NEW custom variables (use source: "ai_suggested") that 
   // Tool-aware directive — the model gets two different "research" prompts
   // depending on whether it has web_search available in this call.
   const researchDirective = research?.hasWebSearchTool
-    ? `Before producing the JSON, use the web_search tool (up to 5 queries) to research the company. Look up what they make, who their customers are, and any obvious product categories. If the company is too small or unknown to find, proceed with the user's inputs.`
+    ? `Before producing the JSON, use the web_search tool (up to 5 queries) to research the company. Look up what they make, who their customers are, and any obvious product categories. If the company is too small or unknown to find, proceed with the user's inputs.
+CRITICAL: after any web searches, your FINAL message must be ONLY the JSON object — no preamble, no "Based on my research…", no commentary before or after. Start the message with "{" and end it with "}". Do not narrate what you found.`
     : researchSection
       ? `Use the COMPANY RESEARCH NOTES above as your ground truth for what the company does. Do not invent product names or facts beyond what's in the notes + inputs.`
       : `You do not have live research for this company. Infer cautiously from the company name + website + survey questions. Avoid specifics you can't justify from these inputs.`;

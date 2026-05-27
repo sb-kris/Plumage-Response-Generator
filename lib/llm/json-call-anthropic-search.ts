@@ -154,18 +154,38 @@ export async function callAnthropicWithSearch(
     responseBody: text,
   });
 
-  // The model is told to output JSON only — try to parse the final text
-  // as JSON. Strip a leading/trailing markdown fence if the model
-  // ignored the "no fences" instruction.
+  // Parse strategy, most-to-least strict:
+  //   1. Strip a markdown fence and try a direct parse (clean output).
+  //   2. If that fails, extract the outermost balanced {…} object from the
+  //      text and parse THAT. The web_search tool makes Claude chatty — it
+  //      often narrates its findings ("Based on my research, here's the
+  //      configuration: { … }") around the JSON, which a strict parse
+  //      can't handle. The balanced-brace scan recovers the JSON from
+  //      surrounding prose.
   const stripped = stripJsonFence(finalText.trim());
   try {
     const json = JSON.parse(stripped);
     return { ok: true, json, rawText: stripped, status: res.status };
-  } catch (err) {
-    const errorMsg =
-      "Final text block didn't parse as JSON: " +
-      (err instanceof Error ? err.message : String(err));
-    return { ok: false, json: null, rawText: stripped, status: res.status, error: errorMsg };
+  } catch {
+    const extracted = extractJsonObject(stripped);
+    if (extracted) {
+      try {
+        const json = JSON.parse(extracted);
+        return { ok: true, json, rawText: extracted, status: res.status };
+      } catch (err2) {
+        const errorMsg =
+          "Extracted JSON object still didn't parse: " +
+          (err2 instanceof Error ? err2.message : String(err2));
+        return { ok: false, json: null, rawText: stripped, status: res.status, error: errorMsg };
+      }
+    }
+    return {
+      ok: false,
+      json: null,
+      rawText: stripped,
+      status: res.status,
+      error: "No JSON object found in the model's final text block.",
+    };
   }
 }
 
@@ -191,8 +211,55 @@ function extractFinalTextBlock(envelope: unknown): string {
 
 function stripJsonFence(s: string): string {
   // ```json\n…\n``` or ```\n…\n``` — same heuristic the base json-call uses.
+  // Note: this only matches when the ENTIRE string is a single fenced
+  // block. Prose-then-fence is handled by extractJsonObject below.
   const fenced = s.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/);
   return fenced ? fenced[1]!.trim() : s;
+}
+
+/**
+ * Find and return the outermost balanced `{…}` object embedded anywhere in
+ * `text`. Walks from the first `{`, tracking brace depth while correctly
+ * skipping braces that live inside string literals (and escaped quotes).
+ * Returns null if there's no `{` or the braces never balance.
+ *
+ * Why needed: with the web_search tool enabled, Claude frequently wraps
+ * the JSON in narration ("Based on my research, here's the configuration:
+ * {...}. Let me know if you'd like adjustments."). A strict JSON.parse on
+ * the whole block fails on the leading prose; this recovers just the
+ * object.
+ */
+function extractJsonObject(text: string): string | null {
+  const start = text.indexOf("{");
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === "{") {
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+      if (depth === 0) {
+        return text.slice(start, i + 1);
+      }
+    }
+  }
+  return null; // unbalanced — no complete object found
 }
 
 function extractError(body: string): string | null {
