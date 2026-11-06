@@ -38,7 +38,7 @@ export function ApiKeyInput({
         type="button"
         variant="ghost"
         size="icon"
-        className="absolute right-1 top-1 h-8 w-8"
+        className="absolute right-0.5 top-0.5 h-7 w-7"
         onClick={() => setVisible((v) => !v)}
         disabled={disabled}
         aria-label={visible ? "Hide API key" : "Show API key"}

@@ -63,7 +63,12 @@ export function ModelSelector({
       </div>
       <Select value={value} onValueChange={onChange} disabled={disabled}>
         <SelectTrigger id={id}>
-          <SelectValue placeholder="Select a model" />
+          {/* Closed state: label only, single line. Tagline detail stays in
+              the option rows + info tooltip so the trigger height matches
+              the inputs around it. */}
+          <SelectValue placeholder="Select a model">
+            {current && <span className="truncate font-medium">{current.label}</span>}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {groups.map((g) => (
@@ -95,14 +100,14 @@ export function ModelSelector({
               className="h-5 gap-1 px-1.5 text-[10px] font-medium leading-none"
             >
               <Sparkles className="h-2.5 w-2.5" />
-              Recommended for {kind === "personas" ? "personas" : "responses"}
+              Recommended
             </Badge>
           )}
           {!modelHasKnownPricing(current.id) && (
             <Badge
               variant="outline"
               className="h-5 px-1.5 text-[10px] font-medium leading-none text-muted-foreground"
-              title="No pricing entry — cost estimator will show 'Pricing unavailable' for this model."
+              title="We don't have pricing for this model, so cost estimates for it will show 'Pricing unavailable'."
             >
               Pricing unavailable
             </Badge>
@@ -149,12 +154,12 @@ function ModelOptionRow({
 function CostBadge({ model }: { model: ModelOption }) {
   const tone =
     model.costTier === "very_low" || model.costTier === "free_or_trial"
-      ? "text-emerald-700 border-emerald-300/60 bg-emerald-50 dark:text-emerald-300 dark:border-emerald-700/40 dark:bg-emerald-950/40"
+      ? "text-success border-success/30 bg-success/10"
       : model.costTier === "low"
-        ? "text-emerald-700 border-emerald-300/40 bg-emerald-50/70 dark:text-emerald-300 dark:border-emerald-800/30 dark:bg-emerald-950/30"
+        ? "text-success border-success/20 bg-success/5"
         : model.costTier === "medium"
-          ? "text-amber-700 border-amber-300/60 bg-amber-50 dark:text-amber-300 dark:border-amber-700/40 dark:bg-amber-950/40"
-          : "text-rose-700 border-rose-300/60 bg-rose-50 dark:text-rose-300 dark:border-rose-700/40 dark:bg-rose-950/40";
+          ? "text-warning border-warning/30 bg-warning/10"
+          : "text-destructive border-destructive/30 bg-destructive/10";
   return (
     <span
       className={cn(
@@ -172,7 +177,7 @@ function RiskBadge({ model }: { model: ModelOption }) {
     return null;
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/60 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium leading-none text-amber-700 dark:border-amber-700/40 dark:bg-amber-950/40 dark:text-amber-300">
+    <span className="inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium leading-none text-warning">
       <ShieldAlert className="h-2.5 w-2.5" />
       {RISK_LEVEL_LABELS[model.riskLevel]}
     </span>
@@ -228,8 +233,8 @@ function ModelInfoTooltip({
             </li>
           ) : (
             <li className="italic">
-              <strong>Pricing:</strong> not yet verified for this model — cost
-              estimator will show &quot;Pricing unavailable&quot;.
+              <strong>Pricing:</strong> not available for this model, so cost
+              estimates will show &quot;Pricing unavailable&quot;.
             </li>
           )}
           {model.notes && (
@@ -238,7 +243,7 @@ function ModelInfoTooltip({
             </li>
           )}
           {providerRisk && (
-            <li className="text-amber-700 dark:text-amber-400">
+            <li className="text-warning">
               <ShieldAlert className="mb-0.5 mr-0.5 inline h-3 w-3" />
               {providerRisk}
             </li>

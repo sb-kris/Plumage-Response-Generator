@@ -98,7 +98,7 @@ export interface FilterOption<V extends string> {
   /** Optional count to show alongside the label (e.g. "Promoter · 230"). */
   count?: number;
   /** Optional tint for the active chip — matches the badge colour scheme. */
-  tone?: "neutral" | "success" | "warning" | "danger" | "info";
+  tone?: "neutral" | "muted" | "success" | "warning" | "danger" | "info";
 }
 
 interface FilterChipsProps<V extends string> {
@@ -155,7 +155,7 @@ function FilterChip({
   children,
 }: {
   active: boolean;
-  tone: "neutral" | "success" | "warning" | "danger" | "info";
+  tone: "neutral" | "muted" | "success" | "warning" | "danger" | "info";
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -164,14 +164,16 @@ function FilterChip({
   // a tooltip.
   const activeTone =
     tone === "success"
-      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40"
+      ? "bg-success/15 text-success border-success/30"
       : tone === "warning"
-        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40"
+        ? "bg-warning/15 text-warning border-warning/30"
         : tone === "danger"
-          ? "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/40"
+          ? "bg-destructive/15 text-destructive border-destructive/30"
           : tone === "info"
-            ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/40"
-            : "bg-primary/15 text-foreground border-primary/40";
+            ? "bg-accent text-accent-foreground border-primary/30"
+            : tone === "muted"
+              ? "bg-muted text-muted-foreground border-muted-foreground/50"
+              : "bg-primary/15 text-foreground border-primary/40";
   return (
     <button
       type="button"

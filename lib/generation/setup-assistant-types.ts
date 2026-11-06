@@ -19,6 +19,7 @@ import type {
   TimePattern,
   TimeRangeConfig,
 } from "@/lib/profiles/types";
+import type { DatasetPurpose } from "@/lib/profiles/dataset-purposes";
 
 // ---------------------------------------------------------------------------
 // Sentiment shape — drives persona distribution deterministically.
@@ -178,6 +179,15 @@ export interface SetupAssistantInputs {
   companyWebsite?: string;
   sentimentShape: SentimentShape;
   notes?: string;
+  /**
+   * Optional Dataset Purpose from the Configure page. When present and
+   * not "custom", the prompt builder injects a purpose guidance block
+   * (label + assistantGuidance + themesVocabulary framing). The LLM
+   * output schema does NOT change — this is guidance-only input,
+   * consumed by the prompt module and echoed as a read-only chip in
+   * the dialog. Callers pass undefined when no purpose is set.
+   */
+  datasetPurpose?: DatasetPurpose;
 }
 
 // ---------------------------------------------------------------------------

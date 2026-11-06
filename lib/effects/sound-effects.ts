@@ -23,9 +23,9 @@ function isSoundEnabled(): boolean {
   if (typeof window === "undefined") return false;
   try {
     const v = localStorage.getItem(SOUND_PREF_KEY);
-    return v === null ? true : v === "true"; // default ON
+    return v === null ? false : v === "true"; // default OFF (opt-in)
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -33,10 +33,10 @@ function isClickSoundEnabled(): boolean {
   if (typeof window === "undefined") return false;
   try {
     const v = localStorage.getItem(CLICK_PREF_KEY);
-    // Default ON when the user hasn't expressed a preference yet.
-    return v === null ? true : v === "true";
+    // Default OFF until the user opts in from the palette menu.
+    return v === null ? false : v === "true";
   } catch {
-    return true;
+    return false;
   }
 }
 

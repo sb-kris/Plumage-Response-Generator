@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useGenerationStore } from "@/store/generation-store";
+import { getSectionOverride } from "@/lib/profiles/dataset-purposes";
+import { PriorityBadge } from "@/components/generate/configure/shared/PriorityBadge";
 import {
   mergeSystemMetadata,
   type MetadataWeightedOption,
@@ -22,11 +24,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertCircle,
-  Globe2,
+  MonitorSmartphone,
   Info,
   Tag,
   Wand2,
@@ -61,6 +62,14 @@ function optionSum(options: MetadataWeightedOption[]): number {
 export function SystemMetadataSection() {
   const rawMetadata = useGenerationStore((s) => s.draft.systemMetadata);
   const setDraft = useGenerationStore((s) => s.setDraft);
+  const datasetPurpose = useGenerationStore((s) => s.draft.datasetPurpose);
+
+  // Dataset Purpose can flag a priority badge here. GUIDANCE ONLY — the
+  // metadata fields and their behavior are untouched. No purpose reframes
+  // this section's title/description today, but the override plumbing is
+  // in place for consistency.
+  const override = getSectionOverride(datasetPurpose, "metadata");
+  const title = override?.label ?? "System metadata";
 
   // Normalize on read so the component never crashes on stale sessionStorage or
   // old profiles that predate the 3f schema (which have a different shape).
@@ -137,27 +146,29 @@ export function SystemMetadataSection() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Globe2 className="h-4 w-4" />
-            System Metadata
+            <MonitorSmartphone className="h-4 w-4" />
+            {title}
+            <PriorityBadge priority={override?.priority} className="font-normal" />
           </CardTitle>
           <CardDescription>
-            Control what SurveySparrow{" "}
-            <code className="rounded bg-muted px-1 font-mono text-[11px]">
-              meta_data
-            </code>{" "}
-            fields Plumage injects into each generated response. Disabled fields
-            are omitted from the API call.
+            {override?.description ? (
+              override.description
+            ) : (
+              <>
+                Details SurveySparrow records with each response. Set the mix of
+                devices, browsers and operating systems, and choose whether to
+                add an IP address and tags.
+              </>
+            )}
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-3">
           {/* device_type */}
           <FieldRow
-            enabled={metadata.device_type.enabled}
-            onToggle={() => toggleField("device_type")}
-            label="Device Type"
+            label="Device type"
             fieldKey="device_type"
-            description="Simulated device of the respondent."
+            description="The device the respondent used."
           >
             <WeightedOptionsField
               options={metadata.device_type.options}
@@ -168,11 +179,9 @@ export function SystemMetadataSection() {
 
           {/* browser */}
           <FieldRow
-            enabled={metadata.browser.enabled}
-            onToggle={() => toggleField("browser")}
             label="Browser"
             fieldKey="browser"
-            description="Browser used to submit the response."
+            description="The browser the response was submitted from."
           >
             <WeightedOptionsField
               options={metadata.browser.options}
@@ -183,11 +192,9 @@ export function SystemMetadataSection() {
 
           {/* os */}
           <FieldRow
-            enabled={metadata.os.enabled}
-            onToggle={() => toggleField("os")}
-            label="Operating System"
+            label="Operating system"
             fieldKey="os"
-            description="OS of the respondent's device."
+            description="The operating system on the respondent's device."
           >
             <WeightedOptionsField
               options={metadata.os.options}
@@ -196,58 +203,12 @@ export function SystemMetadataSection() {
             />
           </FieldRow>
 
-          {/* browser_language */}
-          <FieldRow
-            enabled={metadata.browser_language.enabled}
-            onToggle={() => toggleField("browser_language")}
-            label="Browser Language"
-            fieldKey="browser_language"
-            description="Locale of the respondent's browser."
-            readOnly
-          >
-            <ReadOnlyMirrorNote
-              note="Automatically mirrors your Language distribution. Personas receive the
-                locale for their assigned language."
-            />
-          </FieldRow>
-
-          {/* language */}
-          <FieldRow
-            enabled={metadata.language.enabled}
-            onToggle={() => toggleField("language")}
-            label="Survey Language"
-            fieldKey="language"
-            description="The language in which the survey was presented."
-            readOnly
-          >
-            <ReadOnlyMirrorNote
-              note="Automatically mirrors your Language distribution."
-            />
-          </FieldRow>
-
-          {/* time_zone */}
-          <FieldRow
-            enabled={metadata.time_zone.enabled}
-            onToggle={() => toggleField("time_zone")}
-            label="Timezone"
-            fieldKey="time_zone"
-            description="IANA timezone of the respondent."
-          >
-            <TimezoneField
-              forceTimezone={metadata.time_zone.forceTimezone}
-              onChange={(v) =>
-                update({ time_zone: { ...metadata.time_zone, forceTimezone: v } })
-              }
-            />
-          </FieldRow>
-
           {/* ip */}
           <FieldRow
-            enabled={metadata.ip.enabled}
-            onToggle={() => toggleField("ip")}
-            label="IP Address"
+            toggle={{ enabled: metadata.ip.enabled, onToggle: () => toggleField("ip") }}
+            label="IP address"
             fieldKey="ip"
-            description="Simulated IP address attached to the response."
+            description="The IP address recorded with the response."
           >
             <IpField
               mode={metadata.ip.mode}
@@ -263,11 +224,10 @@ export function SystemMetadataSection() {
 
           {/* tags */}
           <FieldRow
-            enabled={metadata.tags.enabled}
-            onToggle={() => toggleField("tags")}
+            toggle={{ enabled: metadata.tags.enabled, onToggle: () => toggleField("tags") }}
             label="Tags"
             fieldKey="tags"
-            description="Labels applied to every generated response in SS."
+            description="Labels added to every generated response in SurveySparrow."
           >
             <TagsField
               values={metadata.tags.values}
@@ -278,20 +238,7 @@ export function SystemMetadataSection() {
             />
           </FieldRow>
 
-          {/* date_time */}
-          <FieldRow
-            enabled={metadata.date_time.enabled}
-            onToggle={() => toggleField("date_time")}
-            label="Submission Timestamp"
-            fieldKey="date_time"
-            description="The datetime recorded for each response."
-            readOnly
-          >
-            <ReadOnlyMirrorNote
-              note="Driven by the Timing section. Enable now to include the field; timing
-                controls land next."
-            />
-          </FieldRow>
+          <AutoFieldsNote />
         </CardContent>
       </Card>
     </section>
@@ -303,52 +250,49 @@ export function SystemMetadataSection() {
 // ---------------------------------------------------------------------------
 
 interface FieldRowProps {
-  enabled: boolean;
-  onToggle: () => void;
+  /** Rows with a switch can be left out of the response entirely. Rows
+   *  without one (device, browser, OS) are always sent. */
+  toggle?: { enabled: boolean; onToggle: () => void };
   label: string;
   fieldKey: string;
   description: string;
-  readOnly?: boolean;
   children: React.ReactNode;
 }
 
-function FieldRow({
-  enabled,
-  onToggle,
-  label,
-  fieldKey,
-  description,
-  readOnly,
-  children,
-}: FieldRowProps) {
+function FieldRow({ toggle, label, fieldKey, description, children }: FieldRowProps) {
+  const enabled = toggle ? toggle.enabled : true;
   return (
     <div
       className={cn(
-        "rounded-md border transition-colors",
-        enabled ? "bg-background" : "bg-muted/20",
+        "rounded-lg border transition-colors",
+        enabled ? "bg-card" : "bg-muted/30",
       )}
     >
       <div className="flex items-start gap-3 p-3">
-        <Switch
-          checked={enabled}
-          onCheckedChange={onToggle}
-          aria-label={`${enabled ? "Disable" : "Enable"} ${label}`}
-          className="mt-0.5 shrink-0"
-        />
+        {toggle && (
+          <Switch
+            checked={toggle.enabled}
+            onCheckedChange={toggle.onToggle}
+            aria-label={`Include ${label.toLowerCase()}`}
+            className="mt-0.5 shrink-0"
+          />
+        )}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium">{label}</span>
-            <code className="rounded bg-muted px-1 font-mono text-[10px] text-muted-foreground">
-              {fieldKey}
-            </code>
-            {readOnly && (
-              <Badge
-                variant="outline"
-                className="h-4 px-1.5 text-[9px] uppercase tracking-wider text-muted-foreground"
-              >
-                auto
-              </Badge>
-            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <code
+                  tabIndex={0}
+                  className="cursor-help rounded bg-muted px-1 font-mono text-[11px] text-muted-foreground"
+                >
+                  {fieldKey}
+                </code>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                The field name in SurveySparrow&apos;s response data.
+              </TooltipContent>
+            </Tooltip>
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
 
@@ -379,10 +323,10 @@ function WeightedOptionsField({
 
   return (
     <div className="space-y-2">
-      <div className="grid gap-1.5 sm:grid-cols-2">
+      <div className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
         {options.map((o) => (
-          <div key={o.value} className="flex items-center justify-between gap-2">
-            <span className="text-xs">{o.value}</span>
+          <div key={o.value} className="flex items-center gap-2">
+            <span className="w-20 text-sm">{o.value}</span>
             <div className="flex items-center gap-1">
               <Input
                 type="number"
@@ -403,7 +347,7 @@ function WeightedOptionsField({
         {!sumOk && (
           <span className="flex items-center gap-1 text-[11px] text-warning">
             <AlertCircle className="h-3 w-3" />
-            Total: {sum}% — should be 100
+            Total is {sum}%. It should be 100%.
           </span>
         )}
         {sumOk && <span />}
@@ -428,55 +372,29 @@ function WeightedOptionsField({
 }
 
 // ---------------------------------------------------------------------------
-// Read-only mirror note
+// Fields Plumage always fills in from other sections. Shown as one note
+// rather than switches, because they're always sent.
 // ---------------------------------------------------------------------------
 
-function ReadOnlyMirrorNote({ note }: { note: string }) {
+function AutoFieldsNote() {
+  const rows: Array<[string, string]> = [
+    ["Survey and browser language", "from the Languages section"],
+    ["Time zone", "from each persona's country"],
+    ["Submission date and time", "from Responses and timing"],
+  ];
   return (
-    <div className="flex items-start gap-2 rounded-md border bg-muted/30 p-2.5 text-xs text-muted-foreground">
-      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-      <span>{note}</span>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Timezone field
-// ---------------------------------------------------------------------------
-
-interface TimezoneFieldProps {
-  forceTimezone?: string;
-  onChange: (v: string | undefined) => void;
-}
-
-function TimezoneField({ forceTimezone, onChange }: TimezoneFieldProps) {
-  const isForced = forceTimezone !== undefined && forceTimezone !== "";
-
-  return (
-    <div className="space-y-2">
-      <div className="flex flex-col gap-1.5">
-        <RadioOption
-          selected={!isForced}
-          label="Follow persona geography"
-          description="Each persona gets the timezone of their assigned country."
-          onSelect={() => onChange(undefined)}
-        />
-        <RadioOption
-          selected={isForced}
-          label="Force timezone"
-          description="Use a single IANA timezone for all responses."
-          onSelect={() => onChange("")}
-        />
-      </div>
-      {isForced && (
-        <Input
-          value={forceTimezone}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="e.g. America/New_York"
-          className="h-8 text-sm font-mono"
-          autoFocus
-        />
-      )}
+    <div className="rounded-lg border border-dashed bg-muted/30 p-3">
+      <p className="flex items-center gap-1.5 text-sm font-medium">
+        <Info className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+        Filled in for you
+      </p>
+      <ul className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
+        {rows.map(([field, source]) => (
+          <li key={field}>
+            <span className="font-medium text-foreground">{field}</span> {source}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -499,13 +417,13 @@ function IpField({ mode, fixedIp, onModeChange, onFixedIpChange }: IpFieldProps)
         <RadioOption
           selected={mode === "none"}
           label="None"
-          description="Omit the IP field entirely."
+          description="Don't send an IP address."
           onSelect={() => onModeChange("none")}
         />
         <RadioOption
           selected={mode === "coherent"}
           label="Coherent"
-          description="Generate a geo-consistent IP that matches each persona's country."
+          description="Give each persona an IP address from its own country."
           onSelect={() => onModeChange("coherent")}
         />
         <RadioOption
@@ -528,8 +446,8 @@ function IpField({ mode, fixedIp, onModeChange, onFixedIpChange }: IpFieldProps)
         <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-2.5 py-2 text-xs text-warning">
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>
-            Make sure IP address collection is enabled in your SurveySparrow
-            survey settings. If disabled in SS, the IP field will be ignored.
+            Turn on IP address collection in the survey&apos;s settings in
+            SurveySparrow. If it&apos;s off there, SurveySparrow ignores the IP.
           </span>
         </div>
       )}
@@ -598,9 +516,9 @@ function TagsField({ values, draft, onDraftChange, onAdd, onRemove }: TagsFieldP
         </Button>
       </div>
       <p className="text-[11px] text-muted-foreground">
-        Tags appear on every generated response in SurveySparrow. The{" "}
+        The{" "}
         <code className="rounded bg-muted px-1 font-mono">plumage-YYYY-MM</code> tag
-        makes demo data easy to find and clean up later.
+        lets you find demo responses later and delete them.
       </p>
     </div>
   );

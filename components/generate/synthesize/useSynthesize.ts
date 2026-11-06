@@ -96,7 +96,7 @@ export function useSynthesize(): SynthesizeHookState {
     };
 
     const totalBatches = Math.ceil(responseCount / 10); // must match BATCH_SIZE in persona-synthesizer.ts
-    startRun(totalBatches, responseCount, estimatedSeconds);
+    startRun(totalBatches, responseCount, estimatedSeconds, selectedSurveyId);
 
     const ctrl = new AbortController();
     abortRef.current = ctrl;
@@ -202,7 +202,7 @@ function computeReasonNotReady(input: {
   responseCount: number;
 }): string | null {
   if (!input.apiKey) {
-    return "Your LLM API key isn't in memory. Refreshing the page clears it — go back to Setup and re-test the connection.";
+    return "Your AI provider API key isn't loaded. Keys clear on reload unless you turned on “Remember on this device”. Go back to Setup, paste the key again, and click Test connection.";
   }
   if (input.selectedSurveyId === null) {
     return "No survey selected. Pick one in step 1 first.";

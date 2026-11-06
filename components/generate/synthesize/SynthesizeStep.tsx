@@ -1,5 +1,6 @@
 "use client";
 
+import { RunSizeInfo, RunSizeWarning } from "@/components/generate/shared/RunSizeHint";
 import { useEffect, useMemo, useState } from "react";
 import { useGenerationStore } from "@/store/generation-store";
 import { useSurveyStore } from "@/store/survey-store";
@@ -7,7 +8,7 @@ import { useSetupStore } from "@/store/setup-store";
 import { hashSynthesisInputs, usePersonasStore } from "@/store/personas-store";
 import { useResponsesStore } from "@/store/responses-store";
 import { useWizardStore } from "@/store/wizard-store";
-import { getModel } from "@/lib/llm/models";
+import { getModel, getProviderLabel } from "@/lib/llm/models";
 import {
   formatMinutes,
   formatUsd,
@@ -39,6 +40,7 @@ import { PersonaTable } from "./PersonaTable";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { RotatingLoadingMessage } from "@/components/ui/RotatingLoadingMessage";
 import { PERSONA_SYNTHESIS_MESSAGES } from "@/lib/copy/loading-messages";
+import { StaleRunAlert } from "../shared/StaleRunAlert";
 
 // ---------------------------------------------------------------------------
 // Top-level component — picks a sub-state to render
@@ -73,6 +75,8 @@ export function SynthesizeStep() {
           Back to configure
         </Button>
       </div>
+
+      <StaleRunAlert scope="personas" />
 
       {status === "running" ? (
         <RunningCard synth={synth} />
@@ -119,19 +123,49 @@ function PreSynthesisCard({ synth }: { synth: SynthesizeHookState }) {
             <CardTitle>Ready to synthesize personas</CardTitle>
           </div>
           <CardDescription>
-            Generates persona profiles only — no responses are pushed to SurveySparrow yet.
+            This step only creates persona profiles. Nothing is sent to SurveySparrow yet.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
+          {/* The context drives every persona, so show it first. A thin or
+              empty brief is the most common cause of generic demo data, and
+              this is the last screen before money is spent. */}
+          <div className="space-y-1.5 rounded-lg border bg-card p-3">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Context
+            </div>
+            {draft.useCase.trim().length > 0 ? (
+              <p className="line-clamp-3 text-sm">{draft.useCase.trim()}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">No context written.</p>
+            )}
+          </div>
+          {draft.useCase.trim().length < 80 && (
+            <Alert variant="warning">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertTitle>
+                {draft.useCase.trim().length === 0
+                  ? "Personas will be generic without context"
+                  : "Your context is very short"}
+              </AlertTitle>
+              <AlertDescription>
+                A sentence or two about the company, its customers and what the demo
+                should show makes personas and answers much more specific. Click{" "}
+                <strong>Back to configure</strong> and fill in Use case context, or use
+                AI Setup to draft it.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Summary chips */}
           <div className="grid gap-3 sm:grid-cols-2">
-            <SummaryRow label="Survey" value={selectedSurvey?.name ?? "—"} />
+            <SummaryRow label="Survey" value={selectedSurvey?.name ?? "Not selected"} />
             <SummaryRow label="Responses" value={responseCount.toLocaleString()} />
             <SummaryRow
               label="Languages"
               value={
                 enabledLanguages.length === 0
-                  ? "—"
+                  ? "None"
                   : enabledLanguages
                       .map((l) => `${l.code.toUpperCase()} ${l.weight}%`)
                       .join(" · ")
@@ -162,7 +196,7 @@ function PreSynthesisCard({ synth }: { synth: SynthesizeHookState }) {
             <SummaryRow label="Distribution" value={distLabel} />
             <SummaryRow
               label="Provider"
-              value={`${provider.toUpperCase()}`}
+              value={getProviderLabel(provider)}
             />
             <SummaryRow
               label="Persona model"
@@ -179,7 +213,7 @@ function PreSynthesisCard({ synth }: { synth: SynthesizeHookState }) {
           {estimate && (
             <div className="rounded-lg border bg-muted/30 p-3">
               <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
-                <span className="text-muted-foreground">Estimated cost (full pipeline)</span>
+                <span className="text-muted-foreground">Estimated cost (personas + responses)</span>
                 <span className="font-mono text-base font-semibold tabular-nums">
                   <AnimatedNumber
                     value={estimate.totalCost ?? 0}
@@ -189,11 +223,11 @@ function PreSynthesisCard({ synth }: { synth: SynthesizeHookState }) {
                 </span>
               </div>
               <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs text-muted-foreground">
-                <span>Estimated wall-clock</span>
+                <span>Estimated time</span>
                 <span className="tabular-nums">{formatMinutes(estimate.totalSeconds)}</span>
               </div>
               <p className="mt-1.5 text-[11px] text-muted-foreground">
-                Persona synthesis runs first — response generation will run later from this same set.
+                Personas are created now. Responses are generated from these same personas in the next step.
               </p>
             </div>
           )}
@@ -217,7 +251,9 @@ function PreSynthesisCard({ synth }: { synth: SynthesizeHookState }) {
             </Alert>
           )}
 
-          <div className="flex flex-wrap gap-2">
+          <RunSizeWarning count={responseCount} />
+
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               onClick={() => void start()}
               disabled={!canStart}
@@ -227,6 +263,7 @@ function PreSynthesisCard({ synth }: { synth: SynthesizeHookState }) {
               <Sparkles className="h-4 w-4" />
               Synthesize {responseCount.toLocaleString()} personas
             </Button>
+            <RunSizeInfo />
           </div>
         </CardContent>
       </Card>
@@ -300,7 +337,7 @@ function RunningCard({ synth }: { synth: SynthesizeHookState }) {
               ))}
               {warnings.length > 3 && (
                 <div className="text-[10px] text-muted-foreground">
-                  (+{warnings.length - 3} earlier — synthesis will continue with defaults for affected personas)
+                  (+{warnings.length - 3} earlier. Affected personas get default values and synthesis keeps going.)
                 </div>
               )}
             </AlertDescription>
@@ -400,7 +437,7 @@ function CompletedCard({ synth }: { synth: SynthesizeHookState }) {
         <CardHeader>
           <div className="flex items-center gap-2">
             {isPartial ? (
-              <ShieldAlert className="h-5 w-5 text-amber-500" />
+              <ShieldAlert className="h-5 w-5 text-warning" />
             ) : (
               <CheckCircle2 className="h-5 w-5 text-success" />
             )}
@@ -411,8 +448,8 @@ function CompletedCard({ synth }: { synth: SynthesizeHookState }) {
           </div>
           <CardDescription>
             {isPartial
-              ? "The previous run didn't finish — you can use what was saved or re-synthesize from scratch."
-              : "Inspect the breakdown below. Continue to generate responses, or re-synthesize for a different mix."}
+              ? "The last run didn't finish. You can keep the personas that were saved or re-synthesize from scratch."
+              : "Check the breakdown below. Continue to generate responses, or re-synthesize for a different mix."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -494,7 +531,7 @@ function CompletedCard({ synth }: { synth: SynthesizeHookState }) {
           {warnings.length > 0 && (
             <Alert variant="warning">
               <ShieldAlert className="h-4 w-4" />
-              <AlertTitle>Synthesis completed with notes</AlertTitle>
+              <AlertTitle>Synthesis finished with warnings</AlertTitle>
               <AlertDescription className="space-y-1">
                 {warnings.slice(0, 3).map((w, i) => (
                   <div key={i} className="text-xs">{w}</div>
@@ -615,5 +652,5 @@ function pct(part: number, whole: number): number {
 }
 
 function describeDistribution(d: { promoter: number; passive: number; detractor: number }): string {
-  return `${d.promoter}% / ${d.passive}% / ${d.detractor}%`;
+  return `Promoters ${d.promoter}% · Passives ${d.passive}% · Detractors ${d.detractor}%`;
 }

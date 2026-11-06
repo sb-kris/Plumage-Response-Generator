@@ -74,9 +74,9 @@ export function GeneratingCard({ gen }: Props) {
             {eta && <span className="tabular-nums">ETA: {eta}</span>}
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Keep this tab in the foreground for best speed. Closing your laptop lid or
-            putting the machine to sleep will interrupt generation — Plumage can resume
-            from where it stopped when you come back.
+            Keep this tab open and in front for the best speed. Closing your laptop lid
+            or letting it sleep stops generation. When you come back, you can resume
+            from where it stopped.
           </p>
         </div>
 
@@ -96,7 +96,7 @@ export function GeneratingCard({ gen }: Props) {
           <Alert variant="warning">
             <ShieldAlert className="h-4 w-4" />
             <AlertTitle>
-              {warnings.length} persona{warnings.length === 1 ? "" : "s"} required retries (recovered)
+              {warnings.length} persona{warnings.length === 1 ? "" : "s"} may have missing answers
             </AlertTitle>
             <AlertDescription className="space-y-1">
               {warnings.slice(-3).map((w, i) => (

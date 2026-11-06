@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useSetupStore } from "@/store/setup-store";
-import { playSuccessChime, playErrorChime } from "@/lib/effects/sound-effects";
 import type { ChannelConfig } from "@/store/setup-store";
-import { loggedFetch } from "@/store/api-logs-store";
-import { REGION_LIST } from "@/lib/surveysparrow/regions";
+import { testSurveySparrowConnection } from "@/lib/setup/connection-tests";
+import { RememberKeyToggle } from "@/components/setup/RememberKeyToggle";
+import { REGION_LIST, getRegion } from "@/lib/surveysparrow/regions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +26,6 @@ import {
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { ApiKeyInput } from "@/components/shared/ApiKeyInput";
 import {
   CheckCircle2,
@@ -37,8 +36,8 @@ import {
   Trash2,
   Lock,
   LockOpen,
+  ChevronDown,
 } from "lucide-react";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -136,11 +135,17 @@ export function ConnectionForm() {
   const ss = useSetupStore((s) => s.surveySparrow);
   const setSSField = useSetupStore((s) => s.setSSField);
   const connection = useSetupStore((s) => s.ssConnection);
-  const setConnection = useSetupStore((s) => s.setSSConnection);
+  const remember = useSetupStore((s) => s.rememberSS);
+  const setRemember = useSetupStore((s) => s.setRememberSS);
   const [_lastTestedRegion, setLastTestedRegion] = useState<string | null>(null);
 
   const validating = connection.status === "validating";
   const canTest = ss.region && ss.apiKey.trim().length > 0 && !validating;
+
+  // Push behavior is an advanced concern — collapsed by default so it doesn't
+  // compete with the primary "connect" task. Auto-expanded only if the user
+  // has already customized it (so a loaded/edited config stays visible).
+  const [pushOpen, setPushOpen] = useState(ss.channelsEnabled || ss.triggerWorkflow);
 
   // ── Channel helpers ────────────────────────────────────────────────────────
 
@@ -186,67 +191,31 @@ export function ConnectionForm() {
   // ── SS connection test ─────────────────────────────────────────────────────
 
   async function handleTest() {
-    setConnection({ status: "validating", error: null, detail: null });
     setLastTestedRegion(ss.region);
-    try {
-      const res = await loggedFetch(
-        "/api/surveysparrow/test-connection",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ region: ss.region, apiKey: ss.apiKey }),
-        },
-        { kind: "internal", provider: "plumage", contextLabel: "ss-probe" },
-      );
-      const json = (await res.json()) as {
-        ok: boolean;
-        error?: string;
-        sampleSurveyName?: string | null;
-        hasSurveys?: boolean;
-      };
-      if (!json.ok) {
-        setConnection({ status: "error", error: json.error ?? "Connection failed", detail: null });
-        toast.error("SurveySparrow connection failed", {
-          description: json.error ?? "Unknown error",
-        });
-        void playErrorChime();
-        return;
-      }
-      const detail = json.hasSurveys
-        ? `Reachable. Sample survey: "${json.sampleSurveyName}"`
-        : "Reachable. No surveys yet in this workspace.";
-      setConnection({ status: "ok", error: null, lastSuccessAt: Date.now(), detail });
-      toast.success("SurveySparrow connected", { description: detail });
-      void playSuccessChime();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Network error";
-      setConnection({ status: "error", error: msg, detail: null });
-      toast.error("Network error", { description: msg });
-      void playErrorChime();
-    }
+    await testSurveySparrowConnection();
   }
 
+  const regionMeta = getRegion(ss.region);
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <SurveySparrowLogo className="h-6 w-6 shrink-0" />
-              SurveySparrow
-              <ConnectionBadge status={connection.status} />
-            </CardTitle>
-            <CardDescription>
-              Connect to your SurveySparrow workspace. We need an account-level API key with
-              survey + response permissions.
-            </CardDescription>
-          </div>
+    <Card className="flex h-full flex-col border-border/60 shadow-none">
+      <CardHeader className="p-5 pb-3">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Step 1 · Workspace
         </div>
+        <CardTitle className="flex items-center gap-2">
+          <SurveySparrowLogo className="h-6 w-6 shrink-0" />
+          SurveySparrow
+          <ConnectionBadge status={connection.status} />
+        </CardTitle>
+        <CardDescription>
+          Use an account-level API key that can access surveys and responses.
+        </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-5">
+      <CardContent className="flex flex-1 flex-col gap-4 p-5 pt-0">
         {/* Region + Nickname */}
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="ss-region">Data center region</Label>
             <Select
@@ -255,22 +224,34 @@ export function ConnectionForm() {
               disabled={validating}
             >
               <SelectTrigger id="ss-region">
-                <SelectValue placeholder="Select region" />
+                {/* Compact closed state: short code + muted host. The full
+                    label/endpoint detail lives in the option rows below. */}
+                <SelectValue placeholder="Select region">
+                  {regionMeta && (
+                    <span className="flex items-baseline gap-2">
+                      <span className="font-medium">{regionMeta.shortLabel}</span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {stripProtocol(regionMeta.baseUrl)}
+                      </span>
+                    </span>
+                  )}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {REGION_LIST.map((r) => (
-                  <SelectItem key={r.code} value={r.code}>
-                    <span className="flex items-center gap-2">
-                      <span className="font-medium">{r.label}</span>
-                      <span className="text-xs text-muted-foreground">{r.baseUrl}</span>
+                  <SelectItem key={r.code} value={r.code} className="py-1.5">
+                    <span className="flex flex-col">
+                      <span className="text-sm font-medium leading-tight">
+                        {r.shortLabel}
+                      </span>
+                      <span className="text-[11px] leading-tight text-muted-foreground">
+                        {r.label} · {stripProtocol(r.baseUrl)}
+                      </span>
                     </span>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
-              Pick the region where your SurveySparrow account is hosted.
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -282,9 +263,6 @@ export function ConnectionForm() {
               onChange={(e) => setSSField("workspaceNickname", e.target.value)}
               maxLength={40}
             />
-            <p className="text-xs text-muted-foreground">
-              A label for this workspace — shown in the header next to the connection pill.
-            </p>
           </div>
         </div>
 
@@ -298,9 +276,11 @@ export function ConnectionForm() {
             onChange={(v) => setSSField("apiKey", v)}
             disabled={validating}
           />
-          <p className="text-xs text-muted-foreground">
-            Stored only in browser memory while you use this tab. Refresh the page to clear it.
-          </p>
+          <RememberKeyToggle
+            id="ss-remember"
+            checked={remember}
+            onCheckedChange={setRemember}
+          />
         </div>
 
         {/* Connection status alerts */}
@@ -312,20 +292,45 @@ export function ConnectionForm() {
             </AlertDescription>
           </Alert>
         )}
+        {/* Compact success note — the floating ready bar on the page owns
+            the "what's next" moment, so this stays a slim confirmation. */}
         {connection.status === "ok" && connection.detail && (
-          <Alert variant="success">
-            <AlertDescription className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
-              {connection.detail}
-            </AlertDescription>
-          </Alert>
+          <div className="flex items-center gap-2 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+            <span className="min-w-0 break-words">{connection.detail}</span>
+          </div>
         )}
 
-        {/* Push behavior */}
-        <Separator />
-        <div className="space-y-4">
-          <p className="text-sm font-medium text-foreground">Push behavior</p>
+        {/* Push behavior — advanced, collapsed by default (see pushOpen).
+            Soft muted container mirrors the LLM card's "Advanced provider
+            notes" box so both cards share one advanced-zone treatment. */}
+        <div className="rounded-md border bg-muted/30 px-3 py-2.5">
+          <button
+            type="button"
+            onClick={() => setPushOpen((v) => !v)}
+            aria-expanded={pushOpen}
+            className="flex w-full items-center justify-between gap-3 text-left"
+          >
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium text-foreground">Advanced push behavior</p>
+              <p className="text-xs text-muted-foreground">
+                {ss.triggerWorkflow ? "Workflows on" : "Workflows off"}
+                {" · "}
+                {ss.channelsEnabled
+                  ? `${ss.channels.length} channel${ss.channels.length === 1 ? "" : "s"}`
+                  : "Single channel"}
+              </p>
+            </div>
+            <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground">
+              {pushOpen ? "Hide" : "Customize"}
+              <ChevronDown
+                className={cn("h-4 w-4 transition-transform", pushOpen && "rotate-180")}
+              />
+            </span>
+          </button>
 
+          {pushOpen && (
+          <div className="mt-3 space-y-4">
           {/* Trigger workflow toggle */}
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-0.5">
@@ -333,8 +338,8 @@ export function ConnectionForm() {
                 Trigger workflows
               </Label>
               <p className="text-xs text-muted-foreground">
-                When on, push events fire your survey&apos;s notification and automation rules.
-                Keep off for clean demo imports.
+                When on, pushed responses trigger the survey&apos;s notifications and
+                automations. Leave it off for demo data.
               </p>
             </div>
             <Switch
@@ -351,8 +356,8 @@ export function ConnectionForm() {
                 Channel distribution
               </Label>
               <p className="text-xs text-muted-foreground">
-                Route responses across channels using weighted distribution. Lock a channel
-                to keep its share fixed while others auto-rebalance.
+                Split pushed responses across several channels by weight. Lock a channel
+                to keep its share fixed while the others adjust.
               </p>
             </div>
             <Switch
@@ -446,12 +451,12 @@ export function ConnectionForm() {
                           className={cn(
                             "h-9 w-9 transition-colors",
                             ch.locked
-                              ? "text-amber-500 hover:text-amber-600"
+                              ? "text-warning hover:text-warning/80"
                               : "text-muted-foreground hover:text-foreground",
                           )}
                           onClick={() => toggleLock(ch.id)}
                           aria-label={ch.locked ? "Unlock this channel" : "Lock this channel"}
-                          title={ch.locked ? "Locked — click to unlock" : "Unlocked — click to lock"}
+                          title={ch.locked ? "Locked. Click to unlock." : "Unlocked. Click to lock."}
                         >
                           {ch.locked ? (
                             <Lock className="h-4 w-4" />
@@ -498,7 +503,7 @@ export function ConnectionForm() {
                       return (
                         <span key={c.id}>
                           {i > 0 && <span className="mx-1 text-border">·</span>}
-                          {c.locked && <Lock className="mr-0.5 inline h-2.5 w-2.5 text-amber-500" />}
+                          {c.locked && <Lock className="mr-0.5 inline h-2.5 w-2.5 text-warning" />}
                           {lbl} {pct}%
                         </span>
                       );
@@ -508,12 +513,15 @@ export function ConnectionForm() {
               </div>
             </div>
           )}
+          </div>
+          )}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between">
+        {/* Footer action row — mt-auto pins it to the card bottom so both
+            setup cards share the same footer position. */}
+        <div className="mt-auto flex items-center justify-between gap-3 border-t pt-4">
           <p className="text-xs text-muted-foreground">
-            We probe <code className="font-mono">GET /v3/surveys?limit=1</code> to confirm auth.
+            Checks your key and region by reading your survey list.
           </p>
           <Button onClick={handleTest} disabled={!canTest}>
             {validating && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -527,6 +535,15 @@ export function ConnectionForm() {
       </CardContent>
     </Card>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** "https://api.surveysparrow.com" → "api.surveysparrow.com" (display only). */
+function stripProtocol(url: string): string {
+  return url.replace(/^https?:\/\//, "");
 }
 
 // ---------------------------------------------------------------------------
@@ -555,9 +572,8 @@ function ConnectionBadge({ status }: { status: "idle" | "validating" | "ok" | "e
       </Badge>
     );
   }
-  // Idle = no test attempted yet → "Not connected" reads as a status, not
-  // a product-quality claim. The old "Not tested" label was misread by
-  // SEs as "this feature is untested" rather than "this auth hasn't been
-  // validated yet."
-  return <Badge variant="outline">Not connected</Badge>;
+  // Idle = no test attempted yet → show nothing. The step checklist above
+  // the cards and the header pills already communicate "not connected";
+  // repeating it as a third badge was pure noise.
+  return null;
 }

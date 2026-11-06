@@ -6,7 +6,8 @@ import { useSurveyStore } from "@/store/survey-store";
 import { usePersonasStore } from "@/store/personas-store";
 import { useResponsesStore } from "@/store/responses-store";
 import { partitionQuestionsForGeneration } from "@/lib/surveysparrow/types";
-import { getModel } from "@/lib/llm/models";
+import { getModel, getProviderMeta } from "@/lib/llm/models";
+import { RunSizeInfo, RunSizeWarning } from "@/components/generate/shared/RunSizeHint";
 import { formatMinutes, formatUsd } from "@/lib/generation/cost-estimator";
 import { Button } from "@/components/ui/button";
 import {
@@ -68,7 +69,9 @@ export function PreGenerationCard({ gen }: Props) {
           <CardTitle>Ready to generate responses</CardTitle>
         </div>
         <CardDescription>
-          One LLM call per persona — all answers in one shot for per-respondent coherence.
+          Plumage now writes each persona&apos;s answers to the whole survey, so a
+          happy customer stays happy from the first question to the last.
+          Nothing is sent to SurveySparrow yet.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -76,9 +79,9 @@ export function PreGenerationCard({ gen }: Props) {
         <div className="grid gap-3 sm:grid-cols-2">
           <SummaryRow
             label="Personas"
-            value={`${personas.length.toLocaleString()} (synthesized this session)`}
+            value={personas.length.toLocaleString()}
           />
-          <SummaryRow label="Survey" value={selectedSurvey?.name ?? "—"} />
+          <SummaryRow label="Survey" value={selectedSurvey?.name ?? "Not selected"} />
           <SummaryRow
             label="Questions to answer"
             value={
@@ -88,7 +91,7 @@ export function PreGenerationCard({ gen }: Props) {
             }
           />
           <SummaryRow label="Languages" value={langDescriptor} />
-          <SummaryRow label="Provider" value={provider.toUpperCase()} />
+          <SummaryRow label="Provider" value={getProviderMeta(provider).label} />
           <SummaryRow
             label="Response model"
             value={getModel(responseModel)?.label ?? responseModel}
@@ -105,14 +108,12 @@ export function PreGenerationCard({ gen }: Props) {
               </span>
             </div>
             <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs text-muted-foreground">
-              <span>Estimated wall-clock</span>
+              <span>Estimated time</span>
               <span className="tabular-nums">{formatMinutes(estimate.totalSeconds)}</span>
             </div>
             <p className="mt-1.5 text-[11px] text-muted-foreground">
-              Includes a 15% buffer for retries. Up to{" "}
-              {provider === "openai" ? "2" : "4"} requests run in parallel; the run
-              honors {provider === "openai" ? "OpenAI" : "Anthropic"} rate-limit headers
-              and waits when the upstream signals a throttle.
+              Includes a 15% buffer for retries. Several requests run in parallel.
+              If your AI provider asks Plumage to slow down, it waits and retries.
             </p>
           </div>
         )}
@@ -135,12 +136,12 @@ export function PreGenerationCard({ gen }: Props) {
           />
           <div className="space-y-0.5">
             <span className="block text-sm font-medium">
-              Skip preview — push directly to SurveySparrow
+              Skip preview and go straight to push
             </span>
             <span className="block text-xs text-muted-foreground">
               {ssConnectionOk
-                ? "When enabled, responses push to SurveySparrow immediately after generation."
-                : "Test your SurveySparrow connection in Setup to enable this."}
+                ? "Go straight to the push step when generation finishes. You still confirm before anything is sent."
+                : "Connect SurveySparrow on Setup to use this."}
             </span>
           </div>
         </label>
@@ -164,7 +165,9 @@ export function PreGenerationCard({ gen }: Props) {
           </Alert>
         )}
 
-        <div className="flex flex-wrap gap-2">
+        <RunSizeWarning count={personas.length} />
+
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             onClick={() => void start()}
             disabled={!canStart}
@@ -174,6 +177,7 @@ export function PreGenerationCard({ gen }: Props) {
             <Sparkles className="h-4 w-4" />
             Generate {personas.length.toLocaleString()} responses
           </Button>
+          <RunSizeInfo />
         </div>
       </CardContent>
     </Card>

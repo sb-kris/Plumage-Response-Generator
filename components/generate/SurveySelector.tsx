@@ -102,8 +102,8 @@ export function SurveySelector() {
       });
       setHiddenUnsupported(json.hiddenCount ?? 0);
       if (json.truncated) {
-        toast.warning("Survey list truncated", {
-          description: `Showing ${json.count} surveys (pagination cap hit). Archive old ones to see more.`,
+        toast.warning("Not all surveys loaded", {
+          description: `Plumage hit its page limit and is showing ${json.count} surveys. Archive old surveys in SurveySparrow to see the rest.`,
         });
       }
     } catch (err) {
@@ -160,7 +160,7 @@ export function SurveySelector() {
             {hiddenUnsupported > 0
               ? ` · ${hiddenUnsupported} unsupported ${hiddenUnsupported === 1 ? "survey" : "surveys"} hidden`
               : ""}
-            {surveys.truncated ? " · list truncated" : ""}
+            {surveys.truncated ? " · not all surveys loaded" : ""}
           </div>
         </div>
         <Button

@@ -74,9 +74,9 @@ export function CountryPreviewChips({ languageCode }: Props) {
             ))}
           </ul>
           <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
-            Geographic distributions are based on speaker populations and are
-            illustrative, not statistical. Persona synthesis picks each
-            persona&apos;s country from this distribution.
+            These splits are rough estimates based on where each language is
+            spoken. When personas are synthesized, each one gets a country
+            picked from this split.
           </p>
         </div>
       )}

@@ -76,9 +76,9 @@ export function useSleepResilience(active: boolean) {
 
     const handleVis = () => {
       if (document.visibilityState === "hidden") {
-        toastIdRef.current = toast.warning("Tab is hidden — generation may slow", {
+        toastIdRef.current = toast.warning("Generation may slow down while this tab is hidden", {
           description:
-            "Browsers throttle background tabs. Keep Plumage in view for best speed.",
+            "Browsers slow down background tabs. Switch back to Plumage for full speed.",
           duration: Infinity,
         });
       } else {

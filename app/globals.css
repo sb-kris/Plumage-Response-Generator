@@ -2,84 +2,148 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   PLUMAGE TOKENS: Twigs (SurveySparrow's design system), mapped onto the
+   shadcn variable names so every existing component re-skins without edits.
+   Source: the Twigs Design System artifact (surveysparrow/twigs) tokens.css.
+
+   ONE light palette and ONE dark palette. The graphite / cobalt / indigo
+   colour themes were retired with this migration.
+
+   Each variable is a ROLE, not a colour. The dark palette gives every role
+   its own value (it is NOT an inversion of light), following the
+   Commercial-Document-Generator approach: neutral charcoal surfaces, one
+   interaction accent, separate tokens for structural lines vs control edges,
+   and every text role re-earning its contrast on every surface it lands on.
+   All ratios in the comments below were measured, not estimated.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 47.4% 11.2%;
+    /* ── Surfaces ── */
+    /* Twigs neutral-50: the app ground. Cards sit on it in white. */
+    --background: 0 0% 97.3%; /* #f8f8f8 */
+    /* Twigs neutral-900 body ink. */
+    --foreground: 0 0% 6.7%; /* #111111 */
+    --card: 0 0% 100%; /* #ffffff */
+    --card-foreground: 0 0% 6.7%; /* #111111 */
+    --popover: 0 0% 100%; /* #ffffff */
+    --popover-foreground: 0 0% 6.7%; /* #111111 */
+    /* Twigs neutral-100: wells, chips, progress tracks. */
+    --muted: 0 0% 94.5%; /* #f1f1f1 */
+    /* Twigs secondary-600. One step darker than Twigs' slate-500 so helper
+       text clears AA on every surface it lands on: bg 6.7, card 7.1, muted 6.3, accent tint 6.3. */
+    --muted-foreground: 218 16.1% 36.5%; /* #4e596c */
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* ── Lines ── */
+    /* Structural hairline (Twigs neutral-200). */
+    --border: 0 0% 88.6%; /* #e2e2e2 */
+    /* Edge of an INTERACTIVE control (inputs, selects, outline buttons), a
+       different job from --border: WCAG 1.4.11 wants 3:1, and this is 3.8 on
+       card / 3.5 on bg. Twigs secondary-400, the slate its outlines use. */
+    --input: 215 15.1% 53.3%; /* #76859a */
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47.4% 11.2%;
+    /* ── Interaction: one accent (Twigs teal) ── */
+    /* Twigs primary-500 (#00828d) nudged one lightness point darker so teal
+       TEXT also clears AA on the grey page ground (4.6; was 4.3). Visually the
+       same teal. White label 4.9:1. */
+    --primary: 184.9 100% 26.7%; /* #007d88 */
+    --primary-foreground: 0 0% 100%; /* #ffffff */
+    /* Hover darkens, never lightens: primary-600, white label 6.26:1. */
+    --primary-hover: 184.7 100% 22.7%; /* #006b74 */
+    /* Twigs 'default' solid: 8% slate wash. */
+    --secondary: 210 14.3% 94.5%; /* #eff1f3 */
+    --secondary-foreground: 218 16.1% 36.5%; /* #4e596c */
+    /* Hover / selected surface: Twigs primary-50 tint. */
+    --accent: 183.8 47.1% 93.3%; /* #e6f5f6 */
+    /* Ink on that tint: primary-700, 7.6:1. */
+    --accent-foreground: 184.6 100% 18%; /* #00555c */
+    /* Focus ring: primary-400. Twigs' own primary-200 halo is 1.8:1, too faint
+       for a focus indicator, so one step stronger keeps 3:1 (3.1 on bg, 3.3 on card). */
+    --ring: 185 56.6% 41.6%; /* #2e9ca6 */
 
-    /* Faint indigo tint on the card surface — distinguishes Default from
-       the other themes' card colors at a glance. */
-    --card: 239 30% 99%;
-    --card-foreground: 222.2 47.4% 11.2%;
+    /* ── Severity: always beside a glyph or a word ── */
+    /* Twigs negative-900. Error text on white and on its own 10-15% tint
+       both clear 4.5 (the 500 shade was 3.3, 800 was 4.1 on tint). */
+    --destructive: 10.8 69.8% 39%; /* #a9371e */
+    --destructive-foreground: 0 0% 100%; /* #ffffff */
+    /* Twigs positive-900: 5.0 on own tint, 6.5 as a fill under white. */
+    --success: 95.1 57.9% 26.1%; /* #3c691c */
+    --success-foreground: 0 0% 100%; /* #ffffff */
+    /* Success on an inverted (foreground-coloured) surface, e.g. the Setup
+       ready bar: the dark-mode shade, 11.6 on #111111. */
+    --success-inverse: 98.8 41.9% 69.6%; /* #a8d291 */
+    /* Twigs warning-900: 5.3 on own tint, 7.0 as a fill under white. */
+    --warning: 37.7 77.8% 26.5%; /* #78510f */
+    --warning-foreground: 0 0% 100%; /* #ffffff */
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    /* ── Shape, depth, type ── */
+    --radius: 0.5rem; /* Twigs radius-lg: 8px default corner */
+    --shadow-sm: 0 5px 15px rgba(0, 0, 0, 0.04); /* Twigs shadow-sm */
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.08);
 
-    /* Indigo accent — 5.8:1 contrast on white ✓ */
-    --primary: 239 84% 67%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    /* Pale indigo hover/selected — tints interactive states with theme hue */
-    --accent: 239 55% 95%;
-    --accent-foreground: 239 84% 30%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
-
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    --ring: 239 84% 67%;
-    --radius: 0.5rem;
+    /* Native controls and scrollbars follow the app theme, not the OS. */
+    color-scheme: light;
   }
 
   .dark {
-    --background: 224 71% 4%;
-    --foreground: 213 31% 91%;
+    /* ── Surfaces: neutral charcoal, no hue (kit approach) ── */
+    --background: 0 0% 11%; /* #1c1c1c */
+    /* Twigs neutral-100: off-white, 13-15:1. */
+    --foreground: 0 0% 94.5%; /* #f1f1f1 */
+    /* Raised surface. */
+    --card: 0 0% 14.9%; /* #262626 */
+    --card-foreground: 0 0% 94.5%; /* #f1f1f1 */
+    --popover: 0 0% 14.9%; /* #262626 */
+    --popover-foreground: 0 0% 94.5%; /* #f1f1f1 */
+    /* Sunken well, darker than the card it sits in. */
+    --muted: 0 0% 9%; /* #171717 */
+    /* Twigs secondary-300: 6.7 on card, 7.6 on bg, 8.0 on muted. */
+    --muted-foreground: 214.6 16.5% 69%; /* #a3aebd */
 
-    --muted: 223 47% 11%;
-    --muted-foreground: 215.4 16.3% 56.9%;
+    /* ── Lines ── */
+    /* Structural hairline. */
+    --border: 0 0% 22%; /* #383838 */
+    /* Control edge, 3:1 rule: 4.1 on card, 4.6 on bg (neutral-600). */
+    --input: 0 0% 51.8%; /* #848484 */
 
-    --popover: 224 71% 4%;
-    --popover-foreground: 215 20.2% 65.1%;
+    /* ── Interaction ── */
+    /* Teal-400 with a DARK label. One value serves both jobs: as a fill
+       (near-black label 5.8:1) and as text / links on charcoal (5.2 on bg, 4.6
+       on card). Teal-500 with white would fail as text (3.3 on card). */
+    --primary: 185 56.6% 41.6%; /* #2e9ca6 */
+    --primary-foreground: 200 9.1% 6.5%; /* #0f1112 */
+    /* Dark-label fills lighten on hover so the label gains contrast (7.9:1). */
+    --primary-hover: 184.9 42.4% 55.1%; /* #5cb5bd */
+    --secondary: 0 0% 18%; /* #2e2e2e */
+    --secondary-foreground: 0 0% 94.5%; /* #f1f1f1 */
+    /* Teal-tinted hover / selected surface. */
+    --accent: 184 50% 11.8%; /* #0f2b2d */
+    /* Primary-100 on the tint: 10.6:1. */
+    --accent-foreground: 185.3 46.4% 81%; /* #b8e1e5 */
+    /* Primary-300: 6.3 on card. */
+    --ring: 184.9 42.4% 55.1%; /* #5cb5bd */
 
-    --card: 222 47% 6%;
-    --card-foreground: 213 31% 91%;
+    /* ── Severity: brighter shades, dark labels on fills ── */
+    /* Negative-400. Dark label 7.0. */
+    --destructive: 10.8 94.2% 66.5%; /* #fa7659 */
+    --destructive-foreground: 0 0% 6.7%; /* #111111 */
+    /* Positive-300 (400 measured 4.4 on its own badge tint). */
+    --success: 98.8 41.9% 69.6%; /* #a8d291 */
+    --success-foreground: 0 0% 6.7%; /* #111111 */
+    /* Inverted surface is #f1f1f1 here: the light-mode shade, 5.9 on it. */
+    --success-inverse: 95.1 57.9% 26.1%; /* #3c691c */
+    /* Warning-400: 5.8 on own tint, 9.9 under a dark label. */
+    --warning: 37.7 96.4% 56.3%; /* #fbab24 */
+    --warning-foreground: 0 0% 6.7%; /* #111111 */
 
-    --border: 216 34% 17%;
-    --input: 216 34% 17%;
+    /* A black shadow at 4% vanishes on charcoal; dark needs its own depth. */
+    --shadow-sm: 0 5px 15px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.55);
 
-    --primary: 239 84% 67%;
-    --primary-foreground: 222.2 47.4% 1.2%;
-
-    --secondary: 222.2 47.4% 11.2%;
-    --secondary-foreground: 210 40% 98%;
-
-    --accent: 216 34% 17%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 63% 45%;
-    --destructive-foreground: 210 40% 98%;
-
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
-
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    --ring: 239 84% 67%;
+    color-scheme: dark;
   }
 }
 
@@ -89,7 +153,6 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
 
@@ -143,273 +206,7 @@
   }
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   Colour themes — applied as a class on <html> alongside .dark/.light.
-   Status colours (success / warning / destructive) are intentionally
-   identical across all themes so they remain reliably scannable.
-   ─────────────────────────────────────────────────────────────────────────
-   SPECIFICITY NOTE
-   Dark variants use `.dark.theme-X`  (0-2-0) which beats `.dark` (0-1-0)
-   by specificity — no ordering dependency.
-   Light variants use `html.theme-X`  (0-1-1) which beats `:root` (0-1-0)
-   by specificity — avoiding the equal-specificity ordering gamble where
-   `:root` could silently win over `.theme-X` depending on the CSS engine.
-   ───────────────────────────────────────────────────────────────────────── */
 
-/* ── Graphite: neutral monochrome devtool (zinc palette) ─────────────── */
-@layer base {
-  html.theme-graphite {
-    /* Warm cream — clearly distinct from default's pure white */
-    --background: 30 12% 96%;
-    --foreground: 240 6% 11%;
-
-    --muted: 30 8% 91%;
-    --muted-foreground: 240 6% 44%;
-
-    --popover: 30 12% 98%;
-    --popover-foreground: 240 6% 11%;
-
-    /* Warm-tinted card — was pure white across all themes; now distinguishable */
-    --card: 30 14% 98%;
-    --card-foreground: 240 6% 11%;
-
-    --border: 30 6% 87%;
-    --input: 30 6% 87%;
-
-    /* warm graphite — 10.6:1 on cream bg ✓ — intentionally tinted, not pure black */
-    --primary: 240 6% 25%;
-    --primary-foreground: 0 0% 98%;
-
-    --secondary: 30 6% 93%;
-    --secondary-foreground: 240 6% 11%;
-
-    /* warm gray hover — visibly different from indigo/blue hover in other themes */
-    --accent: 30 8% 93%;
-    --accent-foreground: 240 6% 20%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
-
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    --ring: 240 6% 25%;
-  }
-
-  .dark.theme-graphite {
-    --background: 240 3% 7%;
-    --foreground: 240 4% 86%;
-
-    --muted: 240 3% 12%;
-    --muted-foreground: 240 4% 54%;
-
-    --popover: 240 3% 7%;
-    --popover-foreground: 240 4% 65%;
-
-    --card: 240 3% 9%;
-    --card-foreground: 240 4% 86%;
-
-    --border: 240 3% 16%;
-    --input: 240 3% 16%;
-
-    /* zinc-300 — 11.3:1 contrast on dark bg ✓ */
-    --primary: 240 5% 84%;
-    --primary-foreground: 240 6% 10%;
-
-    --secondary: 240 3% 13%;
-    --secondary-foreground: 240 4% 86%;
-
-    --accent: 240 3% 16%;
-    --accent-foreground: 240 4% 86%;
-
-    --destructive: 0 63% 45%;
-    --destructive-foreground: 210 40% 98%;
-
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
-
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    --ring: 240 5% 84%;
-  }
-}
-
-/* ── Cobalt: saturated blue, classic editor vibes (blue-600/400) ─────── */
-@layer base {
-  html.theme-cobalt {
-    /* Cool blue-tinted background — clearly bluer than default */
-    --background: 215 35% 97%;
-    --foreground: 215 25% 10%;
-
-    --muted: 215 22% 92%;
-    --muted-foreground: 215 13% 44%;
-
-    --popover: 215 35% 98%;
-    --popover-foreground: 215 25% 10%;
-
-    /* Cool-tinted card surface */
-    --card: 215 40% 99%;
-    --card-foreground: 215 25% 10%;
-
-    --border: 213 20% 89%;
-    --input: 213 20% 89%;
-
-    /* blue-600 #2563eb — 6.6:1 contrast on bg ✓ */
-    --primary: 217 91% 50%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 210 14% 94%;
-    --secondary-foreground: 215 25% 10%;
-
-    /* Blue-tinted hover — makes selected items visibly blue vs gray */
-    --accent: 217 80% 95%;
-    --accent-foreground: 217 91% 28%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
-
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    --ring: 217 91% 50%;
-  }
-
-  .dark.theme-cobalt {
-    --background: 222 25% 5%;
-    --foreground: 213 28% 90%;
-
-    --muted: 220 22% 10%;
-    --muted-foreground: 215 14% 53%;
-
-    --popover: 222 25% 5%;
-    --popover-foreground: 215 18% 63%;
-
-    --card: 220 27% 7%;
-    --card-foreground: 213 28% 90%;
-
-    --border: 217 24% 16%;
-    --input: 217 24% 16%;
-
-    /* blue-400 ish — 7.1:1 contrast on dark bg ✓ */
-    --primary: 214 89% 65%;
-    --primary-foreground: 222 47% 5%;
-
-    --secondary: 220 22% 11%;
-    --secondary-foreground: 213 28% 90%;
-
-    --accent: 217 24% 16%;
-    --accent-foreground: 213 28% 90%;
-
-    --destructive: 0 63% 45%;
-    --destructive-foreground: 210 40% 98%;
-
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
-
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    --ring: 214 89% 65%;
-  }
-}
-
-/* ── Crimson: deep wine/burgundy accents (hue 350° — rose-shifted from
-      pure red so primary buttons never look like error states) ─────── */
-@layer base {
-  html.theme-crimson {
-    /* Warm rose cream — matches the burgundy warmth */
-    --background: 20 28% 97%;
-    --foreground: 350 12% 12%;
-
-    --muted: 20 18% 92%;
-    --muted-foreground: 350 6% 46%;
-
-    --popover: 20 28% 98%;
-    --popover-foreground: 350 12% 12%;
-
-    /* Warm rose-tinted card surface */
-    --card: 20 35% 99%;
-    --card-foreground: 350 12% 12%;
-
-    --border: 20 8% 88%;
-    --input: 20 8% 88%;
-
-    /* Deep wine #8B1C2E ≈ hsl(350,66%,33%) — 9.1:1 on cream bg ✓
-       Hue 350° (rose side of red) keeps visual distance from
-       destructive at hue 0° (pure red) */
-    --primary: 350 66% 33%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 20 10% 94%;
-    --secondary-foreground: 350 12% 12%;
-
-    /* Pale rose hover — tints interactive states with theme hue */
-    --accent: 350 50% 96%;
-    --accent-foreground: 350 66% 22%;
-
-    /* Keep destructive at pure red (hue 0°) — clearly ≠ wine primary */
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
-
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    --ring: 350 66% 33%;
-  }
-
-  .dark.theme-crimson {
-    /* Very dark, barely wine-tinted — more atmospheric than colourful */
-    --background: 350 8% 8%;
-    --foreground: 0 5% 88%;
-
-    --muted: 350 6% 14%;
-    --muted-foreground: 350 5% 54%;
-
-    --popover: 350 8% 8%;
-    --popover-foreground: 350 5% 64%;
-
-    --card: 350 6% 10%;
-    --card-foreground: 0 5% 88%;
-
-    --border: 350 5% 18%;
-    --input: 350 5% 18%;
-
-    /* Rose-crimson at L=62% — 5.4:1 with dark foreground ✓
-       Hue 350° stays visually separated from dark destructive below */
-    --primary: 350 58% 62%;
-    --primary-foreground: 350 35% 8%;
-
-    --secondary: 350 6% 15%;
-    --secondary-foreground: 0 5% 88%;
-
-    /* Dark rose hover */
-    --accent: 350 25% 18%;
-    --accent-foreground: 350 55% 78%;
-
-    /* Shift dark-mode destructive to orange-red (hue 12°) for clear
-       separation from the rose-crimson primary (hue 350°) */
-    --destructive: 12 78% 48%;
-    --destructive-foreground: 210 40% 98%;
-
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
-
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    --ring: 350 58% 62%;
-  }
-}
 
 /* ─────────────────────────────────────────────────────────────────────────
    Theme transition sweep — View Transitions API.

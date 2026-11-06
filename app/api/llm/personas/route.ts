@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   try {
     body = (await req.json()) as RequestBody;
   } catch {
-    return jsonError(400, "Invalid request body — must be JSON.");
+    return jsonError(400, "Invalid request body. It must be JSON.");
   }
 
   const error = validateRequest(body);

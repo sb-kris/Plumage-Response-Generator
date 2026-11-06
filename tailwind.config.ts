@@ -15,12 +15,15 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        // Geist Sans → primary UI. Inter listed as fallback for legacy refs.
-        sans: ["var(--font-geist-sans)", "var(--font-inter)", "system-ui", "sans-serif"],
-        // Geist Mono → primary monospace; pairs cohesively with Geist Sans.
-        mono: ["var(--font-geist-mono)", "ui-monospace", "monospace"],
-        // Instrument Serif → celebratory/hero moments only; not for body text.
-        serif: ["var(--font-instrument-serif)", "ui-serif", "Georgia", "serif"],
+        // Twigs type: DM Sans for UI + headings, Roboto Mono for data/labels.
+        sans: ["var(--font-sans)", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+      },
+      boxShadow: {
+        // Twigs elevation, per theme (dark redefines them; see globals.css).
+        sm: "var(--shadow-sm)",
+        md: "var(--shadow-md)",
+        lg: "var(--shadow-lg)",
       },
       colors: {
         border: "hsl(var(--border))",
@@ -31,6 +34,7 @@ const config: Config = {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          hover: "hsl(var(--primary-hover))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",

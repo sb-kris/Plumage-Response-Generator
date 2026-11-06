@@ -12,6 +12,12 @@
 export type ProfileSchemaVersion = 1;
 export const CURRENT_SCHEMA_VERSION: ProfileSchemaVersion = 1;
 
+// Re-exported so callers can `import type { DatasetPurpose } from "@/lib/profiles/types"`
+// without needing to know the metadata lives in a separate module.
+export type { DatasetPurpose } from "@/lib/profiles/dataset-purposes";
+import { isDatasetPurpose } from "@/lib/profiles/dataset-purposes";
+import type { DatasetPurpose } from "@/lib/profiles/dataset-purposes";
+
 // ----------------------------------------------------------------------------
 // 3b — themes & persona distribution
 // ----------------------------------------------------------------------------
@@ -246,6 +252,11 @@ export interface MetadataWeightedOption {
 }
 
 export interface SystemMetadataConfig {
+  // `enabled` on device_type / browser / os / browser_language / time_zone /
+  // date_time / language is legacy and ignored: those fields are always sent
+  // (the faker uses the weights; the rest come from Languages, persona
+  // country and Response Timing). Only ip.enabled and tags.enabled matter.
+  // Kept so older saved profiles still load. forceTimezone is likewise unused.
   /** Device type: Mobile, Desktop, Tablet. */
   device_type: { enabled: boolean; options: MetadataWeightedOption[] };
   /** Browser: Chrome, Safari, Firefox, Edge, Other. */
@@ -298,6 +309,13 @@ export interface DemoProfile {
   version: ProfileSchemaVersion;
   createdAt: number;
   updatedAt: number;
+  // Optional dataset-purpose preset. Undefined = pre-purpose behavior
+  // (equivalent to "custom"). Never mutates other draft fields — it's
+  // used to drive placeholders, theme vocabulary, and Setup Assistant
+  // prompt guidance only. Schema version is NOT bumped for this field
+  // because older profiles roundtrip through
+  // validateAndNormalizeProfile() with the field simply undefined.
+  datasetPurpose?: DatasetPurpose;
   // 3a
   useCase: string;
   // 3b
@@ -439,6 +457,12 @@ export function validateAndNormalizeProfile(
     version: CURRENT_SCHEMA_VERSION,
     createdAt: typeof c.createdAt === "number" ? c.createdAt : Date.now(),
     updatedAt: typeof c.updatedAt === "number" ? c.updatedAt : Date.now(),
+    // Optional. isDatasetPurpose rejects rogue strings from tampered JSON;
+    // anything unrecognized falls back to undefined so behavior matches
+    // pre-purpose profiles.
+    ...(isDatasetPurpose(c.datasetPurpose)
+      ? { datasetPurpose: c.datasetPurpose }
+      : {}),
     useCase: typeof c.useCase === "string" ? c.useCase : defaults.useCase,
     themes: Array.isArray(c.themes)
       ? (c.themes as ThemeConfig[]).filter(

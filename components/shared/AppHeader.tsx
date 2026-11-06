@@ -2,7 +2,7 @@
 
 import { ConnectionStatusBar } from "./ConnectionStatusBar";
 import { PlumageWordmark } from "./Wordmark";
-import { ThemeSelector } from "./ThemeSelector";
+import { PreferencesMenu } from "./PreferencesMenu";
 import { ThemeToggle } from "./ThemeToggle";
 import { NavLinks } from "./NavLinks";
 
@@ -32,7 +32,7 @@ export function AppHeader() {
         <div className="flex items-center gap-2">
           <ConnectionStatusBar />
           <div className="ml-1 flex items-center gap-1 border-l pl-3">
-            <ThemeSelector />
+            <PreferencesMenu />
             <ThemeToggle />
           </div>
         </div>

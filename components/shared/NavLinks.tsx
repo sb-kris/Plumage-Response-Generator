@@ -40,10 +40,10 @@ export function NavLinks() {
         const blocked = Boolean(item.requiresConnections) && !bothConnected;
 
         const linkClass = cn(
-          "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+          "rounded-md px-3 py-1.5 text-sm transition-colors",
           active
-            ? "bg-accent text-accent-foreground"
-            : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+            ? "bg-accent font-semibold text-accent-foreground"
+            : "font-medium text-muted-foreground hover:bg-accent/50 hover:text-foreground",
           blocked && "cursor-not-allowed opacity-60",
         );
 
@@ -61,7 +61,7 @@ export function NavLinks() {
             <Tooltip key={item.href}>
               <TooltipTrigger asChild>{link}</TooltipTrigger>
               <TooltipContent side="bottom">
-                Connect SurveySparrow + your LLM on the setup screen first.
+                Connect SurveySparrow and your AI provider on the Setup page first.
               </TooltipContent>
             </Tooltip>
           );

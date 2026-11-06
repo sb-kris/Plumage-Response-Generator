@@ -19,6 +19,14 @@ import {
 } from "@/lib/profiles/persona-distribution";
 import type { PersonaDistribution } from "@/lib/profiles/types";
 import {
+  getSectionOverride,
+  getPurposePersonaLabels,
+  getPurposePersonaPresetLabel,
+  getPurposePersonaHelperText,
+} from "@/lib/profiles/dataset-purposes";
+import { PriorityBadge } from "@/components/generate/configure/shared/PriorityBadge";
+import { PurposeWarnings } from "@/components/generate/configure/shared/PurposeWarnings";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -71,6 +79,29 @@ const ARCHETYPES: ArchetypeMeta[] = [
 export function PersonasSection() {
   const distribution = useGenerationStore((s) => s.draft.personaDistribution);
   const setDraft = useGenerationStore((s) => s.setDraft);
+  const datasetPurpose = useGenerationStore((s) => s.draft.datasetPurpose);
+
+  // Dataset Purpose can reframe the title/description (e.g. "Audience
+  // composition" for market research, "Recovery mix" for support) and
+  // flag a priority. GUIDANCE ONLY — the slider math, rebalancing, and
+  // underlying persona distribution are untouched.
+  const override = getSectionOverride(datasetPurpose, "personas");
+  const title = override?.label ?? "Persona distribution";
+
+  // Purpose can reskin the bucket labels/descriptions ("High intent",
+  // "Advocates", "Needs recovery", …), the preset card labels, and the
+  // helper paragraph. DISPLAY ONLY — the promoter/passive/detractor keys,
+  // slider math, and distribution values are unchanged.
+  const personaLabels = getPurposePersonaLabels(datasetPurpose);
+  const personaHelperText = getPurposePersonaHelperText(datasetPurpose);
+  const effectiveArchetypes = useMemo(
+    () =>
+      ARCHETYPES.map((a) => {
+        const o = personaLabels?.[a.key];
+        return o ? { ...a, label: o.label, description: o.description } : a;
+      }),
+    [personaLabels],
+  );
 
   // Locks are session-only UX; we don't persist them in the profile schema.
   const [locks, setLocks] = useState<LockState>({
@@ -165,13 +196,13 @@ export function PersonasSection() {
   // actually change.
   const chartData = useMemo(
     () =>
-      ARCHETYPES.map((a) => ({
+      effectiveArchetypes.map((a) => ({
         key: a.key,
         name: a.label,
         value: distribution[a.key],
         color: a.color,
       })),
-    [distribution],
+    [distribution, effectiveArchetypes],
   );
 
   const lockedCount = Object.values(locks).filter(Boolean).length;
@@ -192,20 +223,25 @@ export function PersonasSection() {
             <div>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Users className="h-4 w-4" />
-                Persona distribution
+                {title}
                 <SumBadge sum={sum} />
+                <PriorityBadge priority={override?.priority} className="font-normal" />
               </CardTitle>
               <CardDescription>
-                Sentiment mix for synthetic respondents. Drag a slider — the
-                others auto-balance to keep the total at 100%. Lock a slider to
-                pin its value while you adjust the rest.
+                {override?.description ??
+                  "The sentiment mix of your generated respondents. When you drag one slider, the others adjust so the total stays at 100%. Lock a slider to keep its value while you change the rest."}
               </CardDescription>
             </div>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-4">
+          <PurposeWarnings section="personas" />
           {/* Smart presets */}
+          <p className="text-xs text-muted-foreground">
+            Quick presets. P, N and D are the percentage of Promoters, Passives
+            and Detractors.
+          </p>
           <div className="flex flex-wrap gap-2">
             {PERSONA_PRESETS.map((preset) => {
               const active = matchingPresetId === preset.id;
@@ -222,10 +258,12 @@ export function PersonasSection() {
                           : "hover:border-input hover:bg-accent",
                       )}
                     >
-                      <span className="text-sm font-medium">{preset.label}</span>
-                      <span className="text-[10px] tabular-nums text-muted-foreground">
-                        {preset.distribution.promoter}/
-                        {preset.distribution.passive}/
+                      <span className="text-sm font-medium">
+                        {getPurposePersonaPresetLabel(datasetPurpose, preset.id) ??
+                          preset.label}
+                      </span>
+                      <span className="text-xs tabular-nums text-muted-foreground">
+                        P {preset.distribution.promoter} · N {preset.distribution.passive} · D{" "}
                         {preset.distribution.detractor}
                       </span>
                     </button>
@@ -241,7 +279,7 @@ export function PersonasSection() {
           {/* Sliders + Pie chart */}
           <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_220px]">
             <div className="space-y-3">
-              {ARCHETYPES.map((a) => (
+              {effectiveArchetypes.map((a) => (
                 <PersonaRow
                   key={a.key}
                   meta={a}
@@ -255,7 +293,7 @@ export function PersonasSection() {
               ))}
               {lockedCount === PERSONA_KEYS.length && (
                 <p className="text-xs text-warning">
-                  All sliders locked — unlock at least one to make changes.
+                  All sliders are locked. Unlock at least one to make changes.
                 </p>
               )}
             </div>
@@ -266,11 +304,14 @@ export function PersonasSection() {
           </div>
 
           <div className="rounded-md border bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground">
-            <p>
-              For NPS demos, weight more <strong>Promoters</strong> (60–70%).
-              For recovery demos, increase <strong>Detractors</strong>. Custom
-              archetypes will land in a future update.
-            </p>
+            {personaHelperText ? (
+              <p>{personaHelperText}</p>
+            ) : (
+              <p>
+                For NPS demos, set <strong>Promoters</strong> to 60 to 70%. For
+                service-recovery demos, raise <strong>Detractors</strong>.
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -337,8 +378,8 @@ function PersonaRow({
             </TooltipTrigger>
             <TooltipContent side="left" className="max-w-xs">
               {locked
-                ? "Locked — won't auto-adjust when other sliders change."
-                : "Click to lock — value won't change when other sliders move."}
+                ? "Locked. This value stays put when you move other sliders."
+                : "Click to lock this value while you adjust the others."}
             </TooltipContent>
           </Tooltip>
         </div>

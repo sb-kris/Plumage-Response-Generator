@@ -4,13 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -157,9 +150,9 @@ export default function ProfilesPage() {
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">Demo profiles</h1>
           <p className="text-muted-foreground">
-            Save reusable configurations for recurring demos. Profiles include
-            context, themes, persona &amp; language mix, and per-question controls
-            — never API keys.
+            Save configurations you reuse across demos. A profile stores the
+            context, themes, persona and language mix, and per-question
+            settings. API keys are never saved.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -178,10 +171,12 @@ export default function ProfilesPage() {
             <Upload className="h-3.5 w-3.5" />
             Import JSON
           </Button>
+          {/* Profiles are created with Save profile on the Configure step, so
+              this button says where it goes instead of promising a new profile. */}
           <Button asChild size="sm">
-            <Link href="/generate">
+            <Link href="/generate" title="Profiles are saved from the Configure step in Generate">
               <FilePlus className="h-3.5 w-3.5" />
-              New profile
+              Create in Generate
             </Link>
           </Button>
         </div>
@@ -192,18 +187,20 @@ export default function ProfilesPage() {
       ) : list.length === 0 ? (
         <EmptyState />
       ) : (
-        <ul className="space-y-2">
-          {list.map((p) => (
-            <ProfileRow
-              key={p.id}
-              summary={p}
-              onLoad={() => handleLoad(p.id)}
-              onDuplicate={() => handleDuplicate(p.id)}
-              onDelete={() => setPendingDeleteId(p.id)}
-              onExport={() => handleExport(p.id)}
-            />
-          ))}
-        </ul>
+        <div className="overflow-hidden rounded-lg border bg-card/40">
+          <ul className="divide-y">
+            {list.map((p) => (
+              <ProfileRow
+                key={p.id}
+                summary={p}
+                onLoad={() => handleLoad(p.id)}
+                onDuplicate={() => handleDuplicate(p.id)}
+                onDelete={() => setPendingDeleteId(p.id)}
+                onExport={() => handleExport(p.id)}
+              />
+            ))}
+          </ul>
+        </div>
       )}
 
       <AlertDialog
@@ -251,57 +248,50 @@ function ProfileRow({
   onExport: () => void;
 }) {
   return (
-    <li>
-      <Card>
-        <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
-              <span
-                className="truncate text-sm font-medium"
-                title={summary.name}
-              >
-                {summary.name}
-              </span>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Updated {formatRelativeDate(summary.updatedAt)} · created{" "}
-              {formatRelativeDate(summary.createdAt)}
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Button size="sm" onClick={onLoad}>
-              <FolderOpen className="h-3.5 w-3.5" />
-              Load
+    <li className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
+          <span className="truncate font-medium" title={summary.name}>
+            {summary.name}
+          </span>
+        </div>
+        <div className="mt-0.5 text-xs text-muted-foreground">
+          Updated {formatRelativeDate(summary.updatedAt)} · created{" "}
+          {formatRelativeDate(summary.createdAt)}
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <Button size="sm" onClick={onLoad}>
+          <FolderOpen className="h-3.5 w-3.5" />
+          Load
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="More actions">
+              <MoreVertical className="h-4 w-4" />
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="More actions">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onDuplicate}>
-                  <Copy className="h-3.5 w-3.5" />
-                  Duplicate
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onExport}>
-                  <Download className="h-3.5 w-3.5" />
-                  Export JSON
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={onDelete}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </CardContent>
-      </Card>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onDuplicate}>
+              <Copy className="h-3.5 w-3.5" />
+              Duplicate
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExport}>
+              <Download className="h-3.5 w-3.5" />
+              Export JSON
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={onDelete}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </li>
   );
 }
@@ -313,8 +303,8 @@ function EmptyState() {
       <AlertTitle>No saved profiles yet.</AlertTitle>
       <AlertDescription className="space-y-3">
         <p>
-          Open Generate, configure the dials for a specific demo, and click{" "}
-          <strong>Save profile</strong> to keep that configuration around for
+          Go to Generate, pick a survey, and set things up on the Configure
+          step. Then click <strong>Save profile</strong> to keep that setup for
           next time.
         </p>
         <Button asChild size="sm" variant="outline" className="bg-background">
@@ -327,21 +317,19 @@ function EmptyState() {
 
 function ProfilesSkeleton() {
   return (
-    <ul className="space-y-2">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <li key={i}>
-          <Card>
-            <CardHeader className="py-3">
-              <CardTitle className="space-y-2">
-                <Skeleton className="h-4 w-1/3" />
-                <Skeleton className="h-3 w-1/4" />
-              </CardTitle>
-              <CardDescription className="sr-only">Loading...</CardDescription>
-            </CardHeader>
-          </Card>
-        </li>
-      ))}
-    </ul>
+    <div className="overflow-hidden rounded-lg border bg-card/40">
+      <ul className="divide-y">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <li key={i} className="flex items-center justify-between gap-3 px-4 py-3">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-3 w-56" />
+            </div>
+            <Skeleton className="h-9 w-20 rounded-md" />
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

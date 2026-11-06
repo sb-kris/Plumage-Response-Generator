@@ -146,14 +146,14 @@ export function useGenerateResponses(): GenerateResponsesHookState {
       };
 
       if (mode === "fresh") {
-        startRunStore(personasToProcess.length, estimatedSeconds);
+        startRunStore(personasToProcess.length, estimatedSeconds, selectedSurveyId);
         // startRun clears debugLog — add a run-boundary marker after.
-        appendDebugLog({ time: Date.now(), kind: "info", label: `Run started — ${personasToProcess.length} personas` });
+        appendDebugLog({ time: Date.now(), kind: "info", label: `Run started: ${personasToProcess.length} personas` });
       } else {
         // Show overall progress from the start (e.g. "22 / 50") so it's
         // obvious we're continuing, not restarting.
         resumeRunStore(offsetCompleted, overallTotal, estimatedSeconds);
-        appendDebugLog({ time: Date.now(), kind: "info", label: `Run resumed — ${personasToProcess.length} pending` });
+        appendDebugLog({ time: Date.now(), kind: "info", label: `Run resumed: ${personasToProcess.length} pending` });
       }
 
       const ctrl = new AbortController();
@@ -277,7 +277,7 @@ export function useGenerateResponses(): GenerateResponsesHookState {
 
   const start = useCallback(async () => {
     if (personas.length === 0) {
-      failRun("No personas synthesized — go back to step 3.");
+      failRun("No personas yet. Go back to step 3 and synthesize them.");
       return;
     }
     await runStream(personas, "fresh", 0, personas.length);
@@ -336,13 +336,13 @@ function computeReasonNotReady(input: {
   selectedSurveyId: number | null;
 }): string | null {
   if (!input.apiKey) {
-    return "Your LLM API key isn't in memory. Refreshing the page clears it — go back to Setup and re-test the connection.";
+    return "Your AI provider API key isn't loaded. Keys clear on reload unless you turned on “Remember on this device”. Go back to Setup, paste the key again, and click Test connection.";
   }
   if (input.selectedSurveyId === null) {
     return "No survey selected. Pick one in step 1 first.";
   }
   if (input.personasStatus !== "complete" || input.personasCount === 0) {
-    return "Synthesize personas first (step 3).";
+    return "Synthesize personas in step 3 first. If a run there stopped early, click Use these personas to keep what was saved.";
   }
   if (input.questionCount === 0) {
     return "This survey has no answerable questions for Plumage to generate.";

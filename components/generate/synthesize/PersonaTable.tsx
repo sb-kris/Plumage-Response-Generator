@@ -115,7 +115,7 @@ export function PersonaTable({ personas }: Props) {
                 options={[
                   { value: "all",       label: "All",       count: total },
                   { value: "promoter",  label: "Promoter",  count: sentimentCounts.promoter, tone: "success" },
-                  { value: "passive",   label: "Passive",   count: sentimentCounts.passive,  tone: "neutral" },
+                  { value: "passive",   label: "Passive",   count: sentimentCounts.passive,  tone: "muted" },
                   { value: "detractor", label: "Detractor", count: sentimentCounts.detractor, tone: "danger" },
                 ]}
               />

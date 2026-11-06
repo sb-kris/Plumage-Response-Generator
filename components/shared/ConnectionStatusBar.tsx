@@ -39,10 +39,10 @@ function PulsingDot() {
   return (
     <span className="relative flex h-2 w-2" aria-hidden>
       <span
-        className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60 motion-reduce:hidden"
+        className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60 motion-reduce:hidden"
         style={{ animationDuration: "3s" }}
       />
-      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+      <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
     </span>
   );
 }
@@ -84,7 +84,7 @@ function StatusDot({
       if (stale) {
         icon = <Clock className="h-3.5 w-3.5" />;
         color = "text-warning";
-        tooltip = `${fullLabel}: connected ${formatRelativeTime(state.lastSuccessAt)} — consider re-testing.`;
+        tooltip = `${fullLabel}: last tested ${formatRelativeTime(state.lastSuccessAt)}. Click Re-test connection on the Setup page to check it still works.`;
       } else {
         // Pulsing heartbeat dot — feels alive on the page without being noisy.
         icon = <PulsingDot />;

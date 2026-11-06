@@ -1,6 +1,8 @@
 "use client";
 
 import { useGenerationStore } from "@/store/generation-store";
+import { getSectionOverride } from "@/lib/profiles/dataset-purposes";
+import { PriorityBadge } from "@/components/generate/configure/shared/PriorityBadge";
 import type { TimeRangeConfig, TimePattern } from "@/lib/profiles/types";
 import {
   Card,
@@ -14,6 +16,7 @@ import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RunSizeInfo, RunSizeWarning, RECOMMENDED_RUN_SIZE } from "@/components/generate/shared/RunSizeHint";
 
 // ---------------------------------------------------------------------------
 // Pattern definitions
@@ -31,14 +34,14 @@ const PATTERNS: PatternDef[] = [
     id: "realistic_mix",
     label: "Realistic Mix",
     description:
-      "Weighted toward recent dates, more on weekdays, business hours. Mimics a real active user base.",
+      "More responses on recent dates, on weekdays, and during business hours. Looks like a real, active customer base.",
     // Right-weighted with weekday/weekend waves
     bars: [4, 10, 14, 12, 9, 3, 2, 6, 14, 18, 16, 12, 4, 3, 8, 22],
   },
   {
     id: "uniform",
     label: "Uniform",
-    description: "Evenly spread across the date range. Clean for showing steady adoption.",
+    description: "Evenly spread across the date range. Good for showing steady adoption.",
     bars: Array<number>(16).fill(15),
   },
   {
@@ -52,7 +55,7 @@ const PATTERNS: PatternDef[] = [
     id: "campaign_burst",
     label: "Campaign Burst",
     description:
-      "Concentrated spike in the middle of the range. Simulates a survey campaign or email blast.",
+      "A spike in the middle of the range. Looks like a survey campaign or email blast.",
     bars: [1, 3, 6, 10, 15, 21, 27, 30, 27, 21, 15, 10, 6, 3, 1, 1],
   },
 ];
@@ -64,9 +67,12 @@ const PATTERNS: PatternDef[] = [
 const MIN_COUNT = 10;
 const MAX_COUNT = 5_000;
 const SOFT_CAP = 1_000;
-// Position of the soft cap marker as a percentage of the slider track.
+// The slider covers the useful range; the number box still accepts up to
+// MAX_COUNT for anyone who really needs a bigger run.
+const SLIDER_MAX = 1_000;
+// Tick on the slider at the recommended run size.
 const CAP_MARKER_PCT =
-  ((SOFT_CAP - MIN_COUNT) / (MAX_COUNT - MIN_COUNT)) * 100;
+  ((RECOMMENDED_RUN_SIZE - MIN_COUNT) / (SLIDER_MAX - MIN_COUNT)) * 100;
 
 // ---------------------------------------------------------------------------
 // Date helpers
@@ -91,6 +97,13 @@ const TODAY = msToDateStr(Date.now());
 export function TimingSection() {
   const timeRange = useGenerationStore((s) => s.draft.timeRange);
   const setDraft = useGenerationStore((s) => s.setDraft);
+  const datasetPurpose = useGenerationStore((s) => s.draft.datasetPurpose);
+
+  // Dataset Purpose can flag a priority badge here (e.g. "Recommended"
+  // for hierarchy / support). GUIDANCE ONLY — the timing/volume logic
+  // and the existing volume warnings are untouched.
+  const override = getSectionOverride(datasetPurpose, "timing");
+  const title = override?.label ?? "Responses and timing";
 
   function update(patch: Partial<TimeRangeConfig>) {
     setDraft((draft) => {
@@ -104,17 +117,17 @@ export function TimingSection() {
     responseCount >= MAX_COUNT
       ? {
           level: "red" as const,
-          msg: "🔴 Maximum. Expect 30+ minutes and significant LLM cost.",
+          msg: "This is the maximum. Expect 30+ minutes and a large LLM bill.",
         }
       : responseCount >= 3_000
         ? {
             level: "orange" as const,
-            msg: "⚠️ Very high volume. Recommended only for final demo environments.",
+            msg: "Very high volume. Only worth it for a final demo environment.",
           }
         : responseCount >= SOFT_CAP
           ? {
               level: "yellow" as const,
-              msg: "⚡ Generating 1,000+ responses may take 10+ minutes and cost $5+. Consider starting with 200–500 for initial demos.",
+              msg: "1,000+ responses can take 10+ minutes and cost $5 or more. For a first demo, start with 200 to 500.",
             }
           : null;
 
@@ -124,14 +137,106 @@ export function TimingSection() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Clock className="h-4 w-4" />
-            Response Timing
+            {title}
+            <PriorityBadge priority={override?.priority} className="font-normal" />
           </CardTitle>
           <CardDescription>
-            Spread submissions across a date range to make analytics dashboards look realistic.
+            {override?.description ??
+              "How many responses to create, and when they were submitted. Spreading dates over a range makes SurveySparrow's trend charts look real."}
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">
+          {/* ---- Volume slider ---- */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <label htmlFor="response-count" className="text-sm font-medium">
+                  Number of responses
+                </label>
+                <RunSizeInfo />
+                <span className="text-xs text-muted-foreground">
+                  (up to {RECOMMENDED_RUN_SIZE} per run)
+                </span>
+              </div>
+              <input
+                id="response-count"
+                type="number"
+                value={responseCount}
+                min={MIN_COUNT}
+                max={MAX_COUNT}
+                step={10}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (Number.isFinite(v)) {
+                    update({
+                      responseCount: Math.max(MIN_COUNT, Math.min(MAX_COUNT, v)),
+                    });
+                  }
+                }}
+                className="h-7 w-20 rounded-md border bg-background px-2 text-right tabular-nums text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
+
+            {/* Slider + soft cap marker */}
+            <div className="relative">
+              <Slider
+                value={[Math.min(responseCount, SLIDER_MAX)]}
+                onValueChange={(values) => {
+                  const v = values[0];
+                  if (typeof v === "number") update({ responseCount: v });
+                }}
+                min={MIN_COUNT}
+                max={SLIDER_MAX}
+                step={10}
+                aria-label="Number of responses"
+              />
+              {/* Tick at the recommended run size */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    className="absolute top-1/2 h-4 w-0.5 -translate-y-1/2 cursor-default rounded-full bg-primary/70 pointer-events-auto"
+                    style={{ left: `${CAP_MARKER_PCT}%` }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent side="top">{RECOMMENDED_RUN_SIZE} responses: the most that reliably finishes in one run</TooltipContent>
+              </Tooltip>
+            </div>
+
+            <RunSizeWarning count={responseCount} />
+
+            {/* Volume warning */}
+            {volumeWarning && (
+              <div
+                className={cn(
+                  "rounded-md border p-2.5 text-xs leading-relaxed",
+                  volumeWarning.level === "red" &&
+                    "border-destructive/40 bg-destructive/10 text-destructive",
+                  volumeWarning.level === "orange" &&
+                    "border-warning/60 bg-warning/15 text-warning",
+                  volumeWarning.level === "yellow" &&
+                    "border-warning/40 bg-warning/10 text-warning",
+                )}
+              >
+                {volumeWarning.msg}
+              </div>
+            )}
+
+            <p className="text-xs text-muted-foreground">
+              Plumage creates one persona per response, so this is{" "}
+              <strong className="tabular-nums text-foreground">
+                {responseCount.toLocaleString()}
+              </strong>{" "}
+              personas and{" "}
+              <strong className="tabular-nums text-foreground">
+                {responseCount.toLocaleString()}
+              </strong>{" "}
+              responses.
+            </p>
+          </div>
+
+          <div className="border-t" />
+
           {/* ---- Date range ---- */}
           <div className="space-y-2">
             <p className="text-sm font-medium">Date range</p>
@@ -177,7 +282,7 @@ export function TimingSection() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Responses will be distributed across this window based on the pattern below.
+              Responses are spread across these dates using the pattern you pick below.
             </p>
           </div>
 
@@ -212,99 +317,18 @@ export function TimingSection() {
                     htmlFor="business-hours"
                     className="cursor-pointer text-sm font-medium"
                   >
-                    Weight toward business hours (9am–6pm, Mon–Fri) in persona&apos;s
-                    timezone
+                    Favor business hours (9am to 6pm, Mon to Fri) in each persona&apos;s
+                    time zone
                   </label>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-xs">
-                  When enabled, fewer responses appear at 2am or on weekends. Mirrors
-                  real survey response behavior.
+                  When this is on, fewer responses land at 2am or on weekends, the
+                  way real survey traffic does.
                 </TooltipContent>
               </Tooltip>
               <p className="text-xs text-muted-foreground">
-                Fewer responses at night and on weekends — mirrors real user behavior.
+                Puts fewer responses at night and on weekends.
               </p>
-            </div>
-          </div>
-
-          {/* ---- Volume slider ---- */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">Number of responses</p>
-              <input
-                type="number"
-                value={responseCount}
-                min={MIN_COUNT}
-                max={MAX_COUNT}
-                step={10}
-                onChange={(e) => {
-                  const v = parseInt(e.target.value, 10);
-                  if (Number.isFinite(v)) {
-                    update({
-                      responseCount: Math.max(MIN_COUNT, Math.min(MAX_COUNT, v)),
-                    });
-                  }
-                }}
-                className="h-7 w-20 rounded-md border bg-background px-2 text-right tabular-nums text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
-
-            {/* Slider + soft cap marker */}
-            <div className="relative">
-              <Slider
-                value={[responseCount]}
-                onValueChange={(values) => {
-                  const v = values[0];
-                  if (typeof v === "number") update({ responseCount: v });
-                }}
-                min={MIN_COUNT}
-                max={MAX_COUNT}
-                step={10}
-                aria-label="Number of responses"
-              />
-              {/* Soft cap tick at 1,000 */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div
-                    className="absolute top-1/2 h-4 w-0.5 -translate-y-1/2 cursor-default rounded-full bg-warning/70 pointer-events-auto"
-                    style={{ left: `${CAP_MARKER_PCT}%` }}
-                  />
-                </TooltipTrigger>
-                <TooltipContent side="top">1,000 response soft cap</TooltipContent>
-              </Tooltip>
-            </div>
-
-            {/* Volume warning */}
-            {volumeWarning && (
-              <div
-                className={cn(
-                  "rounded-md border p-2.5 text-xs leading-relaxed",
-                  volumeWarning.level === "red" &&
-                    "border-destructive/40 bg-destructive/10 text-destructive",
-                  volumeWarning.level === "orange" &&
-                    "border-orange-500/40 bg-orange-500/10 text-orange-600 dark:text-orange-400",
-                  volumeWarning.level === "yellow" &&
-                    "border-warning/40 bg-warning/10 text-warning",
-                )}
-              >
-                {volumeWarning.msg}
-              </div>
-            )}
-
-            {/* Persona / response readouts */}
-            <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
-              <span>
-                Estimated personas:{" "}
-                <strong className="tabular-nums text-foreground">
-                  {responseCount.toLocaleString()}
-                </strong>
-              </span>
-              <span>
-                Estimated responses:{" "}
-                <strong className="tabular-nums text-foreground">
-                  {responseCount.toLocaleString()}
-                </strong>
-              </span>
             </div>
           </div>
         </CardContent>

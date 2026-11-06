@@ -50,6 +50,10 @@ import {
   summarizeBuckets,
 } from "@/lib/surveysparrow/question-types";
 import {
+  describeDisplayLogic,
+  detectPipingHeuristic,
+} from "@/lib/surveysparrow/display-logic";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -184,6 +188,45 @@ export function QuestionPreview() {
     [rows],
   );
 
+  // Lookup used by describeDisplayLogic when it needs to reference an
+  // upstream question by id (e.g. "Q3.2 includes choice ..."). We include
+  // both kept + skipped questions here so gates that point at
+  // non-answerable upstream questions (welcome screens etc.) still
+  // resolve to a friendly Q-position label instead of a raw id.
+  const questionsById = useMemo(() => {
+    const map = new Map<number, Question>();
+    for (const q of questions.data ?? []) {
+      map.set(q.id, q);
+    }
+    return map;
+  }, [questions.data]);
+
+  // Precompute per-question conditional / piping metadata so QuestionRow
+  // stays a pure renderer. Both are cheap; useMemo mostly to avoid new
+  // string refs on every render, which would churn the tooltip content.
+  const rowsWithBadges = useMemo(
+    () =>
+      rows.map((r) => ({
+        ...r,
+        conditionalHint:
+          r.raw.display_logic && r.raw.display_logic.logics && r.raw.display_logic.logics.length > 0
+            ? describeDisplayLogic(r.raw.display_logic, questionsById)
+            : null,
+        maybePiped: detectPipingHeuristic(r.raw),
+      })),
+    [rows, questionsById],
+  );
+
+  // Aggregate count for the info alert below the card header.
+  const conditionalCount = useMemo(
+    () => rowsWithBadges.filter((r) => r.conditionalHint).length,
+    [rowsWithBadges],
+  );
+  const pipedCount = useMemo(
+    () => rowsWithBadges.filter((r) => r.maybePiped).length,
+    [rowsWithBadges],
+  );
+
   if (selectedSurveyId === null) {
     return (
       <Card className="border-dashed">
@@ -252,11 +295,10 @@ export function QuestionPreview() {
               </div>
             )}
             <CardDescription>
-              Click a question to see its choices and metadata. The Configure step lets
-              you set tone, distribution, and overrides per question.
+              Click a question to see its choices and details.
             </CardDescription>
           </div>
-          <Button variant="ghost" size="sm" onClick={refresh} title="Refetch from SurveySparrow">
+          <Button variant="ghost" size="sm" onClick={refresh} title="Reload questions from SurveySparrow">
             <RefreshCw className="h-3.5 w-3.5" />
             Refresh
           </Button>
@@ -268,8 +310,8 @@ export function QuestionPreview() {
             <ImageIcon className="h-4 w-4" />
             <AlertDescription>
               Hid {partition.skippedImageOnly} image-based{" "}
-              {partition.skippedImageOnly === 1 ? "question" : "questions"} — Plumage
-              generates text responses only.
+              {partition.skippedImageOnly === 1 ? "question" : "questions"}. Plumage
+              only generates text responses.
             </AlertDescription>
           </Alert>
         )}
@@ -279,11 +321,36 @@ export function QuestionPreview() {
             <Bug className="h-4 w-4" />
             <AlertTitle>Some question text didn&apos;t come through</AlertTitle>
             <AlertDescription>
-              Expand any &quot;{FALLBACK_TEXT}&quot; row below and click{" "}
-              <strong>Show raw JSON</strong> — paste the payload to me and I&apos;ll
-              widen the field detection.
+              Plumage doesn&apos;t fully support this question format yet. Expand any
+              &quot;{FALLBACK_TEXT}&quot; row below, click <strong>Show raw JSON</strong>,
+              then <strong>Copy</strong>, and send the JSON to whoever maintains Plumage.
             </AlertDescription>
           </Alert>
+        )}
+
+        {pipedCount > 0 && (
+          <Alert variant="warning">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>
+              {pipedCount === 1
+                ? "One question may use piping"
+                : `${pipedCount} questions may use piping`}
+            </AlertTitle>
+            <AlertDescription className="text-xs">
+              Some question texts contain a placeholder that pulls in an earlier
+              answer (e.g. <code>{"{{Q1}}"}</code>, <code>[[choice]]</code>).
+              SurveySparrow&apos;s API doesn&apos;t say which answer a placeholder
+              points to, so Plumage can&apos;t fill it in. Check the generated
+              answers for questions with the &quot;may use piping&quot; badge.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {conditionalCount > 0 && (
+          <div className="text-xs text-muted-foreground">
+            {conditionalCount} conditional {conditionalCount === 1 ? "question" : "questions"}.
+            Hover a Conditional badge to see when that question is shown.
+          </div>
         )}
 
         {rows.length === 0 ? (
@@ -295,8 +362,15 @@ export function QuestionPreview() {
           </Alert>
         ) : (
           <Accordion type="multiple" className="w-full">
-            {rows.map(({ raw, display }, idx) => (
-              <QuestionRow key={display.id} q={display} raw={raw} index={idx + 1} />
+            {rowsWithBadges.map(({ raw, display, conditionalHint, maybePiped }, idx) => (
+              <QuestionRow
+                key={display.id}
+                q={display}
+                raw={raw}
+                index={idx + 1}
+                conditionalHint={conditionalHint}
+                maybePiped={maybePiped}
+              />
             ))}
           </Accordion>
         )}
@@ -309,10 +383,16 @@ function QuestionRow({
   q,
   raw,
   index,
+  conditionalHint,
+  maybePiped,
 }: {
   q: QuestionDisplay;
   raw: Question;
   index: number;
+  /** Human-readable display_logic description, or null if unconditional. */
+  conditionalHint: string | null;
+  /** Heuristic: does the question text look like it references an earlier answer? */
+  maybePiped: boolean;
 }) {
   const meta = getQuestionTypeMeta(q.type);
   const Icon = meta.icon;
@@ -353,6 +433,51 @@ function QuestionRow({
                   required
                 </Badge>
               )}
+              {conditionalHint && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge
+                      variant="outline"
+                      className="cursor-help border-primary/40 text-[10px] font-normal text-primary"
+                    >
+                      Conditional
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-md">
+                    <div className="space-y-1 text-xs">
+                      <div className="font-medium">Shown only when:</div>
+                      <div className="text-muted-foreground">{conditionalHint}</div>
+                      <div className="pt-1 text-[10px] text-muted-foreground/80">
+                        When pushing, Plumage leaves out this answer for any persona
+                        whose earlier answers don&apos;t meet this condition.
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              {maybePiped && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge
+                      variant="outline"
+                      className="cursor-help border-warning/40 text-[10px] font-normal text-warning"
+                    >
+                      may use piping
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-md">
+                    <div className="space-y-1 text-xs">
+                      <div className="font-medium">Possible piping</div>
+                      <div className="text-muted-foreground">
+                        This question&apos;s text contains what looks like a placeholder
+                        (e.g. <code>{"{{...}}"}</code>, <code>[[...]]</code>). SurveySparrow&apos;s
+                        API doesn&apos;t say which earlier answer it points to, so
+                        Plumage can&apos;t fill it in. Check the generated answers.
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              )}
               {skippedDuringGeneration && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -364,8 +489,8 @@ function QuestionRow({
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-xs">
-                    This question type isn&apos;t generated by the LLM — it&apos;ll
-                    be skipped or auto-filled from the persona&apos;s metadata.
+                    The AI doesn&apos;t answer this question type. Plumage skips it
+                    or fills it from the persona&apos;s details.
                   </TooltipContent>
                 </Tooltip>
               )}
@@ -386,7 +511,7 @@ function QuestionRow({
               )}
               {q.scale && !q.scalePoints && (
                 <span className="text-xs text-muted-foreground">
-                  · scale {q.scale.min}–{q.scale.max}
+                  · scale {q.scale.min} to {q.scale.max}
                 </span>
               )}
               {q.isFreeText && !skippedDuringGeneration && (

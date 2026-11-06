@@ -4,6 +4,13 @@ import { useMemo, useState } from "react";
 import { useGenerationStore } from "@/store/generation-store";
 import { useSurveyStore } from "@/store/survey-store";
 import { getSuggestionsForSurveyType } from "@/lib/themes/suggestions";
+import {
+  getSectionOverride,
+  getPurposeThemeSuggestions,
+  getPurposeThemeInputPlaceholder,
+  getPurposeThemeEmptyState,
+} from "@/lib/profiles/dataset-purposes";
+import { PriorityBadge } from "@/components/generate/configure/shared/PriorityBadge";
 import type { ThemeConfig } from "@/lib/profiles/types";
 import {
   Card,
@@ -34,6 +41,7 @@ function makeThemeId(): string {
 export function ThemesSection() {
   const themes = useGenerationStore((s) => s.draft.themes);
   const setDraft = useGenerationStore((s) => s.setDraft);
+  const datasetPurpose = useGenerationStore((s) => s.draft.datasetPurpose);
   const selectedSurveyId = useSurveyStore((s) => s.selectedSurveyId);
   const surveys = useSurveyStore((s) => s.surveys.data);
   const selectedSurveyType = useMemo(
@@ -41,10 +49,44 @@ export function ThemesSection() {
     [surveys, selectedSurveyId],
   );
 
-  const suggestions = useMemo(
-    () => getSuggestionsForSurveyType(selectedSurveyType),
-    [selectedSurveyType],
-  );
+  // Dataset Purpose can reframe this section's title + description and
+  // flag a priority badge. All GUIDANCE ONLY — the anchor id, data
+  // structure, and behavior are unchanged; only copy + badge adapt.
+  // When no override exists (custom / unset / purpose that doesn't
+  // reframe themes), the default "Themes" title and description render.
+  const override = getSectionOverride(datasetPurpose, "themes");
+  const title = override?.label ?? "Themes";
+  const inputPlaceholder =
+    getPurposeThemeInputPlaceholder(datasetPurpose) ??
+    "Type a theme and press Enter (e.g. installation experience)";
+  const emptyState = getPurposeThemeEmptyState(datasetPurpose);
+
+  // Suggestion chips are purpose-aware: when a Dataset Purpose defines
+  // its own theme/research-dimension list, show those FIRST, then append
+  // any survey-type suggestions not already covered (deduped). With no
+  // purpose (custom / unset) this falls back to the exact survey-type
+  // behavior that shipped before. Purely additive — clicking a chip still
+  // just pre-fills the theme input; nothing auto-adds.
+  const suggestions = useMemo(() => {
+    const surveyType = getSuggestionsForSurveyType(selectedSurveyType);
+    const purpose = getPurposeThemeSuggestions(datasetPurpose);
+    if (!purpose) {
+      return {
+        themes: [...surveyType.themes],
+        label: surveyType.label,
+        purposeDriven: false,
+      };
+    }
+    const seen = new Set(purpose.themes.map((t) => t.toLowerCase()));
+    const merged = [...purpose.themes];
+    for (const t of surveyType.themes) {
+      if (!seen.has(t.toLowerCase())) {
+        merged.push(t);
+        seen.add(t.toLowerCase());
+      }
+    }
+    return { themes: merged, label: purpose.label, purposeDriven: true };
+  }, [selectedSurveyType, datasetPurpose]);
 
   const [input, setInput] = useState("");
   const [showAllSuggestions, setShowAllSuggestions] = useState(false);
@@ -110,15 +152,15 @@ export function ThemesSection() {
             <div>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Tags className="h-4 w-4" />
-                Themes
+                {title}
                 <Badge variant="secondary" className="font-normal">
                   {themes.length} / {MAX_THEMES}
                 </Badge>
+                <PriorityBadge priority={override?.priority} className="font-normal" />
               </CardTitle>
               <CardDescription>
-                What your synthetic respondents talk about. Weights are{" "}
-                <em>relative</em> — they shape how often each theme appears,
-                not an exact percentage.
+                {override?.description ??
+                  "The topics your generated respondents talk about. Weights are relative: a higher weight makes a theme come up more often, but the numbers aren't exact percentages."}
               </CardDescription>
             </div>
           </div>
@@ -130,9 +172,7 @@ export function ThemesSection() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={
-                atCap
-                  ? "Max 8 themes — remove one to add another"
-                  : "Type a theme and press Enter (e.g. installation experience)"
+                atCap ? "8 themes max. Remove one to add another." : inputPlaceholder
               }
               disabled={atCap}
               maxLength={60}
@@ -153,8 +193,8 @@ export function ThemesSection() {
                   Suggestions for{" "}
                   <span className="font-medium text-foreground">
                     {suggestions.label}
-                  </span>{" "}
-                  surveys
+                  </span>
+                  {suggestions.purposeDriven ? "" : " surveys"}
                 </span>
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -191,7 +231,10 @@ export function ThemesSection() {
 
           {/* Theme list */}
           {themes.length === 0 ? (
-            <EmptyThemesState />
+            <EmptyThemesState
+              title={emptyState?.title ?? undefined}
+              description={emptyState?.description ?? undefined}
+            />
           ) : (
             <ul className="space-y-2">
               {themes.map((theme) => (
@@ -314,13 +357,20 @@ function ThemeRow({ theme, onUpdate, onRemove }: ThemeRowProps) {
   );
 }
 
-function EmptyThemesState() {
+function EmptyThemesState({
+  title,
+  description,
+}: {
+  title?: string;
+  description?: string;
+}) {
   return (
     <div className="rounded-md border border-dashed bg-muted/20 p-6 text-center">
       <X className="mx-auto mb-2 h-5 w-5 text-muted-foreground/60" />
-      <div className="text-sm font-medium">No themes yet</div>
+      <div className="text-sm font-medium">{title ?? "No themes yet"}</div>
       <div className="text-xs text-muted-foreground">
-        Themes shape what your synthetic respondents talk about. Add 2–5 to start.
+        {description ??
+          "Themes set what your generated respondents talk about. Add 2 to 5 to start."}
       </div>
     </div>
   );

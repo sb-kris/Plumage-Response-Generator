@@ -99,6 +99,11 @@ interface ResponsesStore {
   error: string | null;
   progress: GenerationProgress;
   sourceConfigHash: string | null;
+  /** Survey the current responses were generated for. Answers are keyed by
+   *  that survey's question ids, so pushing them into any other survey is
+   *  unsafe — the push guard compares this with the selected survey.
+   *  null = unknown (no run yet, or data persisted before this field). */
+  sourceSurveyId: number | null;
 
   // Phase 5c — push flow
   pushStatus: PushStatus;
@@ -120,7 +125,7 @@ interface ResponsesStore {
   skipPreview: boolean;
 
   // Generation actions
-  startRun: (total: number, estimatedSeconds: number | null) => void;
+  startRun: (total: number, estimatedSeconds: number | null, surveyId: number | null) => void;
   /** Continue an interrupted run. Keeps existing responses and initialises
    *  progress from the already-completed count so the progress bar shows
    *  "22 / 50" immediately rather than jumping from "0/28" on first event. */
@@ -175,6 +180,7 @@ export const useResponsesStore = create<ResponsesStore>()(
       error: null,
       progress: idleProgress,
       sourceConfigHash: null,
+      sourceSurveyId: null,
       pushStatus: "idle",
       pushProgress: idlePushProgress,
       pushPhase: null,
@@ -182,10 +188,11 @@ export const useResponsesStore = create<ResponsesStore>()(
       skipPreview: false,
       debugLog: [],
 
-      startRun: (total, estimatedSeconds) =>
+      startRun: (total, estimatedSeconds, surveyId) =>
         set({
           // Fresh run — clear responses and debug log.
           responses: [],
+          sourceSurveyId: surveyId,
           status: "running",
           error: null,
           pushStatus: "idle",
@@ -265,6 +272,7 @@ export const useResponsesStore = create<ResponsesStore>()(
           error: null,
           progress: idleProgress,
           sourceConfigHash: null,
+          sourceSurveyId: null,
           pushStatus: "idle",
           pushProgress: idlePushProgress,
           pushPhase: null,
@@ -342,6 +350,7 @@ export const useResponsesStore = create<ResponsesStore>()(
         status: state.status,
         error: state.error,
         sourceConfigHash: state.sourceConfigHash,
+        sourceSurveyId: state.sourceSurveyId,
         skipPreview: state.skipPreview,
       }),
       onRehydrateStorage: () => (state) => {
@@ -351,7 +360,7 @@ export const useResponsesStore = create<ResponsesStore>()(
         if (state.status === "running") {
           state.status = "interrupted";
           state.error =
-            "Generation was interrupted before it finished — the tab was closed or the network dropped.";
+            "Response generation stopped before it finished because the page was reloaded or closed.";
         }
         // Don't carry transient runtime fields across reload.
         state.progress = idleProgress;

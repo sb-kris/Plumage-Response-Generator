@@ -18,7 +18,7 @@ export async function GET(
   const payload = getFullPayload(id);
   if (!payload) {
     return NextResponse.json(
-      { ok: false, error: "Full payload not available — evicted from the ring buffer." },
+      { ok: false, error: "The request and response for this call are no longer stored. The server only keeps them for recent calls." },
       { status: 404 },
     );
   }

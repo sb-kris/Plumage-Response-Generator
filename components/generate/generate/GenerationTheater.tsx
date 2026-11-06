@@ -52,21 +52,21 @@ export function GenerationTheater() {
   }, [events.length, reduced]);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-border bg-muted shadow-sm">
       {/* Window chrome — three colored dots and a fake URL.
           Intentionally light: no buttons, no controls. It's set dressing
           that signals "this is a real-time feed" without inviting
           interaction it doesn't actually support. */}
-      <div className="flex items-center gap-2 border-b border-zinc-800 bg-zinc-900/60 px-3 py-1.5">
+      <div className="flex items-center gap-2 border-b border-border bg-secondary px-3 py-1.5">
         <div className="flex gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" aria-hidden />
-          <span className="h-2.5 w-2.5 rounded-full bg-amber-500/70" aria-hidden />
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/70" aria-hidden />
+          <span className="h-2.5 w-2.5 rounded-full bg-destructive/70" aria-hidden />
+          <span className="h-2.5 w-2.5 rounded-full bg-warning/70" aria-hidden />
+          <span className="h-2.5 w-2.5 rounded-full bg-success/70" aria-hidden />
         </div>
-        <span className="ml-1 font-mono text-[10px] text-zinc-500">
+        <span className="ml-1 font-mono text-[10px] text-muted-foreground">
           plumage://generation
         </span>
-        <span className="ml-auto font-mono text-[10px] text-zinc-600 tabular-nums">
+        <span className="ml-auto font-mono text-[10px] text-muted-foreground tabular-nums">
           {events.length} event{events.length === 1 ? "" : "s"}
         </span>
       </div>
@@ -76,7 +76,7 @@ export function GenerationTheater() {
         className="h-[280px] overflow-y-auto overflow-x-hidden p-3 font-mono text-[11px] leading-relaxed scrollbar-thin"
       >
         {events.length === 0 ? (
-          <p className="text-zinc-600">{"› Waiting for responses…"}</p>
+          <p className="text-muted-foreground">{"› Waiting for responses…"}</p>
         ) : (
           <AnimatePresence initial={false}>
             {events.map((e) => (
@@ -88,20 +88,20 @@ export function GenerationTheater() {
                 transition={{ duration: 0.18, ease: "easeOut" }}
                 className="flex gap-2"
               >
-                <span className="shrink-0 text-zinc-600 tabular-nums">[{e.timestamp}]</span>
+                <span className="shrink-0 text-muted-foreground tabular-nums">[{e.timestamp}]</span>
                 <span
                   className={
                     e.kind === "success"
-                      ? "shrink-0 text-emerald-400"
+                      ? "shrink-0 text-success"
                       : e.kind === "warning"
-                        ? "shrink-0 text-amber-400"
-                        : "shrink-0 text-zinc-500"
+                        ? "shrink-0 text-warning"
+                        : "shrink-0 text-muted-foreground"
                   }
                   aria-hidden
                 >
                   {e.kind === "success" ? "✓" : e.kind === "warning" ? "⚠" : "›"}
                 </span>
-                <span className="text-zinc-300 break-words">{e.text}</span>
+                <span className="text-foreground break-words">{e.text}</span>
               </motion.div>
             ))}
           </AnimatePresence>
@@ -180,7 +180,7 @@ function useFeedEvents(
 function firstRatingHint(r: GeneratedResponse): string {
   for (const value of Object.values(r.answers)) {
     if (typeof value === "number" && Number.isFinite(value)) {
-      return ` — ${value}`;
+      return ` · ${value}`;
     }
     if (
       value &&
@@ -188,7 +188,7 @@ function firstRatingHint(r: GeneratedResponse): string {
       "rating" in value &&
       typeof (value as { rating: unknown }).rating === "number"
     ) {
-      return ` — ${(value as { rating: number }).rating}`;
+      return ` · ${(value as { rating: number }).rating}`;
     }
   }
   return "";

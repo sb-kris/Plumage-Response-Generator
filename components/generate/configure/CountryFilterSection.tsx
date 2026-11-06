@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useGenerationStore } from "@/store/generation-store";
+import { getSectionOverride } from "@/lib/profiles/dataset-purposes";
+import { PriorityBadge } from "@/components/generate/configure/shared/PriorityBadge";
 import { WORLD_COUNTRIES, countryFlagEmoji } from "@/lib/utils/world-countries";
 import type { CountryFilterEntry } from "@/lib/profiles/types";
 import {
@@ -26,7 +28,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Globe, Plus, X } from "lucide-react";
+import { Globe, MapPin, Plus, X } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Section root
@@ -37,7 +39,14 @@ export function CountryFilterSection() {
     (s) => s.draft.countryFilter ?? [],
   );
   const setDraft = useGenerationStore((s) => s.setDraft);
+  const datasetPurpose = useGenerationStore((s) => s.draft.datasetPurpose);
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Dataset Purpose can reframe title/description ("Markets", "Regions /
+  // markets", "Locales") and flag a priority. GUIDANCE ONLY — filter
+  // behavior unchanged.
+  const override = getSectionOverride(datasetPurpose, "countries");
+  const title = override?.label ?? "Country filter";
 
   const selectedCodes = useMemo(
     () => new Set(countryFilter.map((e) => e.code)),
@@ -78,13 +87,13 @@ export function CountryFilterSection() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Globe className="h-4 w-4" />
-            Country filter
+            <MapPin className="h-4 w-4" />
+            {title}
+            <PriorityBadge priority={override?.priority} className="font-normal" />
           </CardTitle>
           <CardDescription>
-            Restrict which countries personas are assigned to. Useful when demoing to a
-            region-specific customer. Leave empty to let the language distribution pick
-            countries automatically.
+            {override?.description ??
+              "Limit personas to the countries you pick. Use this when the customer only operates in certain regions. Leave it empty and countries are picked from the Languages section above."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -92,7 +101,7 @@ export function CountryFilterSection() {
             /* Empty state */
             <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed py-7 text-center">
               <p className="text-sm text-muted-foreground">
-                No filter — countries follow the language distribution above.
+                No filter. Countries are picked from the Languages section above.
               </p>
               <CountryPicker
                 open={pickerOpen}

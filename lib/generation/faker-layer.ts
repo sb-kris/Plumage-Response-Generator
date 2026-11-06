@@ -238,7 +238,7 @@ function pickDeviceType(
   rng: () => number,
 ): DeviceType {
   const cfg = metadata.device_type;
-  if (cfg.enabled && cfg.options.length > 0) {
+  if (cfg.options.length > 0) {
     const pick = weightedPick(cfg.options, (o) => o.weight, rng);
     if (pick.value === "Mobile" || pick.value === "Desktop" || pick.value === "Tablet") {
       return pick.value;
@@ -257,7 +257,7 @@ function pickBrowser(
   rng: () => number,
 ): string {
   const cfg = metadata.browser;
-  if (cfg.enabled && cfg.options.length > 0) {
+  if (cfg.options.length > 0) {
     // Filter the configured options to those that are coherent for this
     // device/OS pair (passed in as `preferred`). If none match, fall back
     // to the preferred list directly.
@@ -307,7 +307,7 @@ function generateDeviceProfile(
   // Desktop
   const osCfg = metadata.os;
   let os: string;
-  if (osCfg.enabled && osCfg.options.length > 0) {
+  if (osCfg.options.length > 0) {
     // Prefer desktop-class OSes only.
     const desktopOnly = osCfg.options.filter((o) =>
       ["Windows", "macOS", "Linux"].includes(o.value),

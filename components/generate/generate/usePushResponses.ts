@@ -9,6 +9,7 @@ import { useGenerationStore } from "@/store/generation-store";
 import { loggedFetch } from "@/store/api-logs-store";
 import { buildSSBatchPayload } from "@/lib/surveysparrow/response-builder";
 import { ensureSurveyVariablesExist } from "@/lib/surveysparrow/ensure-variables";
+import { useRunSurveyGuard } from "@/components/generate/shared/useRunSurveyGuard";
 
 // Phase 5c — orchestrates pushing generated responses to SurveySparrow.
 //
@@ -48,10 +49,10 @@ export interface PushResponsesHookState {
 
 export function usePushResponses(): PushResponsesHookState {
   const responses = useResponsesStore((s) => s.responses);
-  const personas = usePersonasStore((s) => s.personas);
   const ss = useSetupStore((s) => s.surveySparrow);
   const ssConnection = useSetupStore((s) => s.ssConnection);
   const selectedSurveyId = useSurveyStore((s) => s.selectedSurveyId);
+  const { responsesStale, staleSurveyName } = useRunSurveyGuard();
 
   const startPush = useResponsesStore((s) => s.startPush);
   const recordPushResult = useResponsesStore((s) => s.recordPushResult);
@@ -65,6 +66,7 @@ export function usePushResponses(): PushResponsesHookState {
     ssConnectionStatus: ssConnection.status,
     responsesCount: responses.length,
     surveyId: selectedSurveyId,
+    staleSurveyName: responsesStale ? staleSurveyName : null,
   });
   const canPush = reasonNotReady === null;
 
@@ -76,9 +78,19 @@ export function usePushResponses(): PushResponsesHookState {
     if (!canPush || selectedSurveyId === null) return;
     const surveyId: number = selectedSurveyId;
 
-    const personasById = new Map(personas.map((p) => [p.id, p]));
+    // Read responses + personas from the store at call time, NOT from the
+    // render closure. pushAgain() resets every status to "generated" right
+    // before calling push(); a closure value would still show them as
+    // "pushed", leaving nothing to send while the card reported success.
+    const { responses: currentResponses, sourceSurveyId } = useResponsesStore.getState();
+    // Last-line survey guard (the UI already blocks via reasonNotReady):
+    // never send answers keyed to another survey's question ids.
+    if (sourceSurveyId !== null && sourceSurveyId !== surveyId) return;
+    const personasById = new Map(
+      usePersonasStore.getState().personas.map((p) => [p.id, p]),
+    );
     // Only push responses that haven't already been successfully pushed.
-    const toPush = responses.filter((r) => r.status !== "pushed");
+    const toPush = currentResponses.filter((r) => r.status !== "pushed");
 
     if (toPush.length === 0) {
       finishPush();
@@ -160,7 +172,7 @@ export function usePushResponses(): PushResponsesHookState {
         appendDebugLog({
           time: Date.now(),
           kind: "batch_fail",
-          label: `Variable readiness — ${readiness.failedNames.length} failed`,
+          label: `Variable check: ${readiness.failedNames.length} failed`,
           detail:
             readiness.failedNames.length > 0
               ? `${errLabel} · names: ${readiness.failedNames.slice(0, 3).join(", ")}${readiness.failedNames.length > 3 ? "…" : ""}`
@@ -311,7 +323,7 @@ export function usePushResponses(): PushResponsesHookState {
         appendDebugLog({
           time: Date.now(),
           kind: "batch_ok",
-          label: `Batch ${batchNum}/${totalBatches} — display_logic skipped ${batchDropped} answer${batchDropped === 1 ? "" : "s"} (${personasWithDrops} of ${batch.length} personas, avg ${avg})`,
+          label: `Batch ${batchNum}/${totalBatches}: display_logic skipped ${batchDropped} answer${batchDropped === 1 ? "" : "s"} (${personasWithDrops} of ${batch.length} personas, avg ${avg})`,
         });
       }
 
@@ -328,7 +340,7 @@ export function usePushResponses(): PushResponsesHookState {
       appendDebugLog({
         time: Date.now(),
         kind: "batch_start",
-        label: `Batch ${batchNum}/${totalBatches} — sending ${batch.length} response${batch.length === 1 ? "" : "s"}`,
+        label: `Batch ${batchNum}/${totalBatches}: sending ${batch.length} response${batch.length === 1 ? "" : "s"}`,
         detail: variableKeys.length > 0
           ? `variables: ${variableKeys.join(", ")}`
           : "no variables in payload",
@@ -367,7 +379,7 @@ export function usePushResponses(): PushResponsesHookState {
           break;
         }
         const msg = err instanceof Error ? err.message : "Network error";
-        appendDebugLog({ time: Date.now(), kind: "batch_fail", label: `Batch ${batchNum}/${totalBatches} — network error`, detail: msg });
+        appendDebugLog({ time: Date.now(), kind: "batch_fail", label: `Batch ${batchNum}/${totalBatches}: network error`, detail: msg });
         for (const { responseId } of batch) {
           recordPushResult(responseId, false, undefined, msg);
         }
@@ -376,7 +388,7 @@ export function usePushResponses(): PushResponsesHookState {
 
       if (!result.ok) {
         const errMsg = result.error ?? "Batch failed";
-        appendDebugLog({ time: Date.now(), kind: "batch_fail", label: `Batch ${batchNum}/${totalBatches} — API error`, detail: errMsg });
+        appendDebugLog({ time: Date.now(), kind: "batch_fail", label: `Batch ${batchNum}/${totalBatches}: API error`, detail: errMsg });
         for (const { responseId } of batch) {
           recordPushResult(responseId, false, undefined, errMsg);
         }
@@ -400,13 +412,13 @@ export function usePushResponses(): PushResponsesHookState {
         : "";
       const detailParts: string[] = [];
       if (result.accepted) detailParts.push("accepted (no polling token)");
-      if (result.timedOut) detailParts.push("polling timed out — SS may still finalize");
+      if (result.timedOut) detailParts.push("polling timed out; SurveySparrow may still finish processing");
       if (reasonsText) detailParts.push(reasonsText.replace(/^· /, ""));
 
       appendDebugLog({
         time: Date.now(),
         kind: failedCount > 0 ? "batch_fail" : "batch_ok",
-        label: `Batch ${batchNum}/${totalBatches} — ${successCount} pushed${failedCount > 0 ? `, ${failedCount} failed` : ""}${terminalText}`,
+        label: `Batch ${batchNum}/${totalBatches}: ${successCount} pushed${failedCount > 0 ? `, ${failedCount} failed` : ""}${terminalText}`,
         detail: detailParts.length > 0 ? detailParts.join(" · ") : undefined,
       });
 
@@ -458,9 +470,7 @@ export function usePushResponses(): PushResponsesHookState {
     appendDebugLog,
     canPush,
     finishPush,
-    personas,
     recordPushResult,
-    responses,
     selectedSurveyId,
     ss.apiKey,
     ss.region,
@@ -480,6 +490,11 @@ export function usePushResponses(): PushResponsesHookState {
     // Bail if a push is already running — pushing the same set twice in
     // parallel would result in messy split status updates.
     if (useResponsesStore.getState().pushStatus === "running") return;
+    // Check BEFORE resetting. If pushing isn't allowed (e.g. the responses
+    // belong to a different survey), resetPush() would wipe the record of
+    // what was already pushed while push() then sends nothing, inviting a
+    // duplicate push later.
+    if (!canPush) return;
     // Flip every response back to "generated" so the normal push flow
     // sweeps them up again. Clears `pushedResponseId` and any prior
     // error message so the new attempt starts clean.
@@ -487,7 +502,7 @@ export function usePushResponses(): PushResponsesHookState {
     // resetPush() is a Zustand `set` call — synchronous — so the next
     // `push()` reads the updated status immediately.
     await push();
-  }, [push, resetPush]);
+  }, [canPush, push, resetPush]);
 
   return { push, pushAgain, cancel, canPush, reasonNotReady };
 }
@@ -501,18 +516,23 @@ function computeReasonNotReady(input: {
   ssConnectionStatus: string;
   responsesCount: number;
   surveyId: number | null;
+  /** Set when the responses belong to a different survey. */
+  staleSurveyName: string | null;
 }): string | null {
   if (!input.ssApiKey) {
-    return "SurveySparrow API key not set — go back to Setup.";
+    return "Your SurveySparrow API key isn't loaded. Keys clear on reload unless you turned on “Remember on this device”. Go back to Setup, paste the key again, and click Test connection.";
   }
   if (input.ssConnectionStatus !== "ok") {
-    return "SurveySparrow connection not verified — test it in Setup first.";
+    return "Your SurveySparrow connection isn't verified. Go to Setup and click Test connection.";
   }
   if (input.surveyId === null) {
     return "No survey selected.";
   }
   if (input.responsesCount === 0) {
-    return "No responses to push — generate some first.";
+    return "No responses to push yet. Generate them first.";
+  }
+  if (input.staleSurveyName !== null) {
+    return `These responses were generated for \u201C${input.staleSurveyName}\u201D, not the selected survey. Switch back to that survey in step 1, or generate new responses.`;
   }
   return null;
 }

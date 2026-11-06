@@ -16,12 +16,21 @@ export type WizardStep = 1 | 2 | 3 | 4;
 
 interface WizardStore {
   currentStep: WizardStep;
+  /** Furthest step the user has opened this session. Drives StepNav's
+   *  unlock + "completed" ticks so Configure can't be skipped and a tick
+   *  means "done", not merely "positioned before the current step". */
+  furthestStep: WizardStep;
   setStep: (step: WizardStep) => void;
   reset: () => void;
 }
 
 export const useWizardStore = create<WizardStore>((set) => ({
   currentStep: 1,
-  setStep: (step) => set({ currentStep: step }),
-  reset: () => set({ currentStep: 1 }),
+  furthestStep: 1,
+  setStep: (step) =>
+    set((s) => ({
+      currentStep: step,
+      furthestStep: (Math.max(s.furthestStep, step) as WizardStep),
+    })),
+  reset: () => set({ currentStep: 1, furthestStep: 1 }),
 }));

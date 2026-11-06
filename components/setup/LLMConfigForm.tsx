@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import { useSetupStore } from "@/store/setup-store";
-import { loggedFetch } from "@/store/api-logs-store";
+import { testLLMConnection } from "@/lib/setup/connection-tests";
+import { RememberKeyToggle } from "@/components/setup/RememberKeyToggle";
 import {
   Card,
   CardContent,
@@ -16,88 +17,17 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { ApiKeyInput } from "@/components/shared/ApiKeyInput";
-import { ProviderIcon } from "@/components/shared/ProviderIcon";
-import { playSuccessChime, playErrorChime } from "@/lib/effects/sound-effects";
 import { ModelSelector } from "./ModelSelector";
+import { ProviderSelect } from "./ProviderSelect";
 import {
   CheckCircle2,
   XCircle,
   Loader2,
   AlertCircle,
   Info,
-  Sparkles,
   ShieldAlert,
 } from "lucide-react";
-import { toast } from "sonner";
-import {
-  LLM_PROVIDERS,
-  getProviderMeta,
-  type LLMProvider,
-} from "@/lib/llm/models";
-import { cn } from "@/lib/utils";
-
-// ---------------------------------------------------------------------------
-// Provider grid — compact card for each provider
-// ---------------------------------------------------------------------------
-
-/** Visually highlight ONE provider as "recommended for most SEs". Kept in
- *  sync with the cost-estimator's recommendation: Google Gemini is the
- *  cost-sensitive default surfaced to new SEs. We don't auto-switch the
- *  store's default provider — backward compatibility with existing Anthropic
- *  test flows matters more — we only surface the recommendation visually. */
-const RECOMMENDED_PROVIDER: LLMProvider = "google";
-
-interface ProviderCardProps {
-  provider: LLMProvider;
-  selected: boolean;
-  disabled?: boolean;
-  onSelect: () => void;
-}
-
-function ProviderCard({ provider, selected, disabled, onSelect }: ProviderCardProps) {
-  const meta = getProviderMeta(provider);
-  const isRecommended = provider === RECOMMENDED_PROVIDER;
-  const hasRisk = Boolean(meta.riskNote);
-
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      disabled={disabled}
-      aria-pressed={selected}
-      className={cn(
-        "relative flex flex-col gap-1.5 rounded-md border p-3 text-left text-sm transition-colors",
-        selected
-          ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary/20"
-          : "border-border bg-background hover:border-input hover:bg-accent",
-        disabled && "cursor-not-allowed opacity-50",
-      )}
-    >
-      <div className="flex items-baseline justify-between gap-2">
-        <span className={cn("flex items-center gap-2 text-sm font-semibold", meta.accentClass)}>
-          <ProviderIcon provider={provider} className="h-4 w-4 -translate-y-px" />
-          {meta.label}
-        </span>
-        {isRecommended && (
-          <Badge
-            variant="success"
-            className="h-5 px-1.5 text-[10px] font-medium leading-none"
-          >
-            <Sparkles className="mr-0.5 h-2.5 w-2.5" />
-            Recommended
-          </Badge>
-        )}
-      </div>
-      <p className="text-xs text-muted-foreground">{meta.blurb}</p>
-      {hasRisk && (
-        <div className="mt-0.5 flex items-center gap-1 text-[10px] font-medium text-amber-700 dark:text-amber-400">
-          <ShieldAlert className="h-3 w-3" />
-          <span>Use with care for sensitive context</span>
-        </div>
-      )}
-    </button>
-  );
-}
+import { getModelsByProvider, getProviderMeta, type LLMProvider } from "@/lib/llm/models";
 
 // ---------------------------------------------------------------------------
 // Custom-model-ID input for OpenRouter
@@ -153,7 +83,8 @@ export function LLMConfigForm() {
   const setCustomPersonaModelId = useSetupStore((s) => s.setLLMCustomPersonaModelId);
   const setCustomResponseModelId = useSetupStore((s) => s.setLLMCustomResponseModelId);
   const connection = useSetupStore((s) => s.llmConnection);
-  const setConnection = useSetupStore((s) => s.setLLMConnection);
+  const remember = useSetupStore((s) => s.rememberLLM);
+  const setRemember = useSetupStore((s) => s.setRememberLLM);
 
   const validating = connection.status === "validating";
   const meta = getProviderMeta(llm.provider);
@@ -174,94 +105,33 @@ export function LLMConfigForm() {
   const [notesOpen, setNotesOpen] = useState(false);
 
   async function handleTest() {
-    setConnection({ status: "validating", error: null, detail: null });
-    try {
-      // Probe the persona model — it's typically the cheaper of the two and
-      // any auth/model-availability error surfaces the same way as it would
-      // for the response model.
-      const res = await loggedFetch(
-        "/api/llm/test-connection",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            provider: llm.provider,
-            apiKey: llm.apiKey,
-            model: llm.personaModel,
-            customModelId: personaNeedsCustomId ? llm.customPersonaModelId : undefined,
-          }),
-        },
-        { kind: "internal", provider: "plumage", contextLabel: `llm-probe:${llm.provider}` },
-      );
-      const json = (await res.json()) as {
-        ok: boolean;
-        error?: string | null;
-        sample?: string | null;
-        model?: string;
-      };
-      if (!json.ok) {
-        setConnection({
-          status: "error",
-          error: json.error ?? "Connection failed",
-          detail: null,
-        });
-        toast.error(`${providerLabel} connection failed`, {
-          description: json.error ?? "Unknown error",
-        });
-        void playErrorChime();
-        return;
-      }
-      const detail = `Probe to ${json.model ?? llm.personaModel} succeeded${
-        json.sample ? ` — got: "${json.sample.slice(0, 40)}"` : ""
-      }`;
-      setConnection({
-        status: "ok",
-        error: null,
-        lastSuccessAt: Date.now(),
-        detail,
-      });
-      toast.success(`${providerLabel} connected`, { description: detail });
-      void playSuccessChime();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Network error";
-      setConnection({ status: "error", error: msg, detail: null });
-      toast.error("Network error", { description: msg });
-      void playErrorChime();
-    }
+    await testLLMConnection();
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              LLM provider
-              <ConnectionBadge status={connection.status} />
-            </CardTitle>
-            <CardDescription>
-              Pick a provider, then choose models for persona synthesis and response
-              generation. Cost-sensitive bulk runs? Try Gemini Flash-Lite. Polished
-              executive demos? Anthropic or GPT-4o.
-            </CardDescription>
-          </div>
+    <Card className="flex h-full flex-col border-border/60 shadow-none">
+      <CardHeader className="p-5 pb-3">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Step 2 · AI provider
         </div>
+        <CardTitle className="flex items-center gap-2">
+          AI provider
+          <ConnectionBadge status={connection.status} />
+        </CardTitle>
+        <CardDescription>
+          Models for persona synthesis and response generation.
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-5">
-        {/* Provider grid — 2 cols on sm, 3 cols on lg. */}
+      <CardContent className="flex flex-1 flex-col gap-4 p-5 pt-0">
+        {/* Provider dropdown — replaces the old 6-card grid. */}
         <div className="space-y-2">
-          <Label>Provider</Label>
-          <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
-            {LLM_PROVIDERS.map((p) => (
-              <ProviderCard
-                key={p}
-                provider={p}
-                selected={llm.provider === p}
-                disabled={validating}
-                onSelect={() => setProvider(p)}
-              />
-            ))}
-          </div>
+          <Label htmlFor="llm-provider">Provider</Label>
+          <ProviderSelect
+            id="llm-provider"
+            value={llm.provider}
+            onChange={setProvider}
+            disabled={validating}
+          />
         </div>
 
         {/* API key */}
@@ -275,6 +145,11 @@ export function LLMConfigForm() {
             disabled={validating}
           />
           <p className="text-xs text-muted-foreground">{meta.apiKeyHint}</p>
+          <RememberKeyToggle
+            id="llm-remember"
+            checked={remember}
+            onCheckedChange={setRemember}
+          />
 
           {/* Provider risk + free-tier notes (collapsible if any). */}
           {(meta.riskNote || meta.freeTierWarning) && (
@@ -297,7 +172,7 @@ export function LLMConfigForm() {
                 <div className="mt-2 space-y-1.5 text-muted-foreground">
                   {meta.riskNote && (
                     <div className="flex items-start gap-1.5">
-                      <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                      <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
                       <span>{meta.riskNote}</span>
                     </div>
                   )}
@@ -313,13 +188,15 @@ export function LLMConfigForm() {
           )}
         </div>
 
-        {/* Model selectors */}
-        <div className="grid gap-5 md:grid-cols-2">
+        {/* Model selectors — side by side whenever the card is wide enough:
+            md viewport when the cards are stacked, xl when they sit in the
+            two-column Setup grid (each card ≈ half the page). */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
           <div className="space-y-1">
             <ModelSelector
               id="persona-model"
               label="Persona model"
-              description="Generates synthetic respondent profiles. Cheap & fast is fine here."
+              description="Builds synthetic respondent profiles."
               kind="personas"
               provider={llm.provider}
               value={llm.personaModel}
@@ -341,7 +218,7 @@ export function LLMConfigForm() {
             <ModelSelector
               id="response-model"
               label="Response model"
-              description="Writes each persona's answers. Quality matters more — pick a balanced model."
+              description="Writes survey answers for each persona."
               kind="responses"
               provider={llm.provider}
               value={llm.responseModel}
@@ -370,19 +247,20 @@ export function LLMConfigForm() {
             </AlertDescription>
           </Alert>
         )}
+        {/* Compact success note — the floating ready bar on the page owns
+            the "what's next" moment, so this stays a slim confirmation. */}
         {connection.status === "ok" && connection.detail && (
-          <Alert variant="success">
-            <AlertDescription className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
-              {connection.detail}
-            </AlertDescription>
-          </Alert>
+          <div className="flex items-center gap-2 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+            <span className="min-w-0 break-words">{connection.detail}</span>
+          </div>
         )}
 
-        {/* Test button row */}
-        <div className="flex items-center justify-between">
+        {/* Footer action row — mt-auto pins it to the card bottom so both
+            setup cards share the same footer position. */}
+        <div className="mt-auto flex items-center justify-between gap-3 border-t pt-4">
           <p className="text-xs text-muted-foreground">
-            Test sends a tiny JSON probe to your persona model. Costs &lt; $0.0001.
+            Sends one tiny request to the persona model (under $0.0001).
           </p>
           <Button onClick={handleTest} disabled={!canTest}>
             {validating && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -453,9 +331,8 @@ function ConnectionBadge({
       </Badge>
     );
   }
-  // Idle = no test attempted yet → "Not connected" reads as a status, not
-  // a product-quality claim. The old "Not tested" label was misread by
-  // SEs as "this feature is untested" rather than "this auth hasn't been
-  // validated yet."
-  return <Badge variant="outline">Not connected</Badge>;
+  // Idle = no test attempted yet → show nothing. The step checklist above
+  // the cards and the header pills already communicate "not connected";
+  // repeating it as a third badge was pure noise.
+  return null;
 }

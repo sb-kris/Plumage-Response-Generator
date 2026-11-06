@@ -1,13 +1,23 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import type { SurveySparrowRegion } from "@/lib/surveysparrow/regions";
 import type { LLMProvider } from "@/lib/llm/models";
 import { getProviderDefaultModels } from "@/lib/llm/models";
 
-// IMPORTANT: this store is in-memory only. We deliberately do NOT use any persist
-// middleware. API keys must vanish on refresh. Form values like region / model are
-// also gone on refresh, but that's a fair trade for the security guarantee.
+// API KEYS: in memory by default, and saved ONLY when the user opts in.
+// Each service has its own "Remember on this device" switch (rememberSS /
+// rememberLLM), matching the Weave importer. When a switch is on, that
+// service's settings, key included, go to localStorage (plain text, this
+// browser only). Turning it off rewrites storage without them, which deletes
+// the saved key. Connection status is never saved: remembered keys are
+// re-tested on load by ConnectionRestorer.
+//
+// skipHydration: the saved values are loaded after mount (ConnectionRestorer
+// calls persist.rehydrate()), so the server render and first client render
+// match and no hydration warnings fire.
 
 export type ConnectionStatus = "idle" | "validating" | "ok" | "error";
 
@@ -66,6 +76,12 @@ interface SetupStore {
   llm: LLMConfig;
   ssConnection: ConnectionState;
   llmConnection: ConnectionState;
+  /** Opt-in: save the SurveySparrow settings and key in this browser. */
+  rememberSS: boolean;
+  /** Opt-in: save the AI provider settings and key in this browser. */
+  rememberLLM: boolean;
+  setRememberSS: (v: boolean) => void;
+  setRememberLLM: (v: boolean) => void;
 
   // SurveySparrow
   setSSField: <K extends keyof SurveySparrowConfig>(key: K, value: SurveySparrowConfig[K]) => void;
@@ -92,12 +108,13 @@ const defaultSS: SurveySparrowConfig = {
   channels: [],
 };
 
-// Default provider: Anthropic stays the default for backward compatibility
-// with existing test flows + Phase 4 verification. The UI's "Recommended for
-// most SEs" treatment is applied to Google Gemini (economy mode) via the
-// model registry — users can pick it explicitly without us flipping the
-// default model out from under existing deployments.
-const DEFAULT_PROVIDER: LLMProvider = "anthropic";
+// Default provider: OpenAI — the current preferred cost/quality default for
+// Plumage (GPT-4o Mini personas + GPT-4.1 Mini responses via the registry's
+// defaultForPersona/defaultForResponse flags). The store is in-memory only,
+// so this default applies to fresh tabs; a provider picked during a session
+// is never overridden. The "Recommended" badge treatment stays on Google
+// Gemini (cheapest bulk option) via ProviderSelect.
+const DEFAULT_PROVIDER: LLMProvider = "openai";
 const defaultDefaultModels = getProviderDefaultModels(DEFAULT_PROVIDER);
 const defaultLLM: LLMConfig = {
   provider: DEFAULT_PROVIDER,
@@ -108,11 +125,21 @@ const defaultLLM: LLMConfig = {
   customResponseModelId: "",
 };
 
-export const useSetupStore = create<SetupStore>((set) => ({
+type PersistedSetup = Partial<
+  Pick<SetupStore, "rememberSS" | "rememberLLM" | "surveySparrow" | "llm">
+>;
+
+export const useSetupStore = create<SetupStore>()(
+  persist(
+    (set) => ({
   surveySparrow: defaultSS,
   llm: defaultLLM,
   ssConnection: idleConnection,
   llmConnection: idleConnection,
+  rememberSS: false,
+  rememberLLM: false,
+  setRememberSS: (v) => set({ rememberSS: v }),
+  setRememberLLM: (v) => set({ rememberLLM: v }),
 
   setSSField: (key, value) =>
     set((s) => {
@@ -217,5 +244,51 @@ export const useSetupStore = create<SetupStore>((set) => ({
       llm: defaultLLM,
       ssConnection: idleConnection,
       llmConnection: idleConnection,
+      rememberSS: false,
+      rememberLLM: false,
     }),
-}));
+    }),
+    {
+      name: "plumage:setup:v1",
+      storage: createJSONStorage(() => localStorage),
+      skipHydration: true,
+      // Only remembered services are written. Unticking a switch drops that
+      // service from storage on the next write, which deletes the saved key.
+      partialize: (s): PersistedSetup => ({
+        rememberSS: s.rememberSS,
+        rememberLLM: s.rememberLLM,
+        ...(s.rememberSS ? { surveySparrow: s.surveySparrow } : {}),
+        ...(s.rememberLLM ? { llm: s.llm } : {}),
+      }),
+      // Layer saved values over the defaults so fields added later still get
+      // a value. Connection status always starts idle.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as PersistedSetup;
+        return {
+          ...current,
+          rememberSS: p.rememberSS ?? false,
+          rememberLLM: p.rememberLLM ?? false,
+          surveySparrow: p.surveySparrow
+            ? { ...current.surveySparrow, ...p.surveySparrow }
+            : current.surveySparrow,
+          llm: p.llm ? { ...current.llm, ...p.llm } : current.llm,
+        };
+      },
+      version: 1,
+    },
+  ),
+);
+
+/**
+ * True once remembered settings have been loaded from localStorage (or there
+ * were none). Lets pages show "Checking your connections…" instead of flashing a
+ * "connect first" warning while saved keys are being loaded and re-tested.
+ */
+export function useSetupHydrated() {
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(useSetupStore.persist.hasHydrated());
+    return useSetupStore.persist.onFinishHydration(() => setHydrated(true));
+  }, []);
+  return hydrated;
+}

@@ -48,9 +48,11 @@ interface PersonasStore {
   progress: SynthesisProgress;
   /** Hash of the config that produced `personas` — used to detect drift. */
   sourceConfigHash: string | null;
+  /** Survey these personas were synthesized for. null = unknown. */
+  sourceSurveyId: number | null;
 
   // Mutations
-  startRun: (totalBatches: number, total: number, estimatedSeconds: number | null) => void;
+  startRun: (totalBatches: number, total: number, estimatedSeconds: number | null, surveyId: number | null) => void;
   reportProgress: (p: { completed: number; total: number; currentBatch: number }) => void;
   reportWarning: (message: string) => void;
   /** Append a single batch of enriched personas. Replaces by id so a
@@ -80,11 +82,13 @@ export const usePersonasStore = create<PersonasStore>()(
       error: null,
       progress: idleProgress,
       sourceConfigHash: null,
+      sourceSurveyId: null,
 
-      startRun: (totalBatches, total, estimatedSeconds) =>
+      startRun: (totalBatches, total, estimatedSeconds, surveyId) =>
         set({
           // Fresh run — clear personas so partial leftovers don't blend in.
           personas: [],
+          sourceSurveyId: surveyId,
           status: "running",
           error: null,
           progress: {
@@ -149,6 +153,7 @@ export const usePersonasStore = create<PersonasStore>()(
           error: null,
           progress: idleProgress,
           sourceConfigHash: null,
+          sourceSurveyId: null,
         }),
     }),
     {
@@ -165,6 +170,7 @@ export const usePersonasStore = create<PersonasStore>()(
         status: state.status,
         error: state.error,
         sourceConfigHash: state.sourceConfigHash,
+        sourceSurveyId: state.sourceSurveyId,
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
@@ -172,7 +178,7 @@ export const usePersonasStore = create<PersonasStore>()(
         if (state.status === "running") {
           state.status = "interrupted";
           state.error =
-            "Synthesis was interrupted before it finished — the tab was closed or the network dropped.";
+            "Persona synthesis stopped before it finished because the page was reloaded or closed.";
         }
         state.progress = idleProgress;
       },

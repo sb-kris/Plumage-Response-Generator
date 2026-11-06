@@ -34,6 +34,11 @@ export function ProfileBar() {
   const clearLoadedSource = useGenerationStore((s) => s.clearLoadedSource);
 
   const dirty = isDraftDirty(draft, loadedProfile);
+  // A brand-new draft (no profile, no context, no themes). This is where a
+  // first-time user is most likely to stall in front of a long page, so we
+  // point them at AI Setup, the fastest way to fill it in.
+  const isFreshDraft =
+    !loadedProfile && draft.useCase.trim().length === 0 && draft.themes.length === 0;
 
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveAsNew, setSaveAsNew] = useState(false);
@@ -62,7 +67,7 @@ export function ProfileBar() {
 
   function handleResetDraft() {
     if (
-      !confirm("Reset the configuration draft to factory defaults? This won't delete saved profiles.")
+      !confirm("Reset this draft to the default settings? Your saved profiles stay as they are.")
     ) {
       return;
     }
@@ -93,7 +98,7 @@ export function ProfileBar() {
                   )}
                 </div>
                 <div className="text-[11px] text-muted-foreground">
-                  Loaded profile · changes affect only the current draft until you save.
+                  Loaded profile · edits stay in this draft until you save.
                 </div>
               </div>
             </>
@@ -103,7 +108,7 @@ export function ProfileBar() {
               <div className="min-w-0">
                 <div className="text-sm font-medium">Unsaved configuration</div>
                 <div className="text-[11px] text-muted-foreground">
-                  Save as a profile to reuse this configuration for future demos.
+                  Save it as a profile to reuse these settings in future demos.
                 </div>
               </div>
             </>
@@ -124,7 +129,7 @@ export function ProfileBar() {
             size="sm"
             onClick={() => setAssistantOpen(true)}
             className="gap-1 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
-            title="Generate a tailored configuration from your company + selected survey"
+            title="Fill in these settings automatically from a company name and the selected survey"
           >
             <Sparkles className="h-3.5 w-3.5" />
             AI Setup
@@ -163,6 +168,25 @@ export function ProfileBar() {
           </DropdownMenu>
         </div>
       </div>
+
+      {isFreshDraft && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-accent px-4 py-3">
+          <div className="min-w-0 space-y-0.5">
+            <p className="text-sm font-medium text-accent-foreground">
+              New here? Let AI Setup fill this in.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Give it a company name and it drafts the context, themes and persona
+              mix for this survey. You review everything before it&apos;s applied.
+              Prefer to do it yourself? Start with the Use case context section below.
+            </p>
+          </div>
+          <Button size="sm" onClick={() => setAssistantOpen(true)} className="gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" />
+            Open AI Setup
+          </Button>
+        </div>
+      )}
 
       <SaveProfileDialog
         open={saveOpen}

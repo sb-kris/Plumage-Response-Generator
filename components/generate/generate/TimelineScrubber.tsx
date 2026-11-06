@@ -96,8 +96,8 @@ export function TimelineScrubber({
           </Button>
         </div>
         {sorted.length <= 1
-          ? "Only one response was generated — no timeline to replay."
-          : "Generation completed in under 1 second — no timeline to replay."}
+          ? "Only one response was generated, so there's no timeline to replay."
+          : "Generation finished in under a second, so there's no timeline to replay."}
       </div>
     );
   }

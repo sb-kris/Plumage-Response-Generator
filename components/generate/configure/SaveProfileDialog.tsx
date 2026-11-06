@@ -123,8 +123,8 @@ export function SaveProfileDialog({ open, onOpenChange, mode }: Props) {
             {error && <p className="text-xs text-destructive">{error}</p>}
             {!error && (
               <p className="text-xs text-muted-foreground">
-                If the name is taken, we&apos;ll auto-suffix with &quot;(2)&quot;,
-                &quot;(3)&quot;, etc.
+                If the name is already taken, we&apos;ll add &quot;(2)&quot;,
+                &quot;(3)&quot;, and so on.
               </p>
             )}
           </div>

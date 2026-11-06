@@ -63,23 +63,23 @@ export function GenerationRunningBanner() {
     <div
       role="status"
       aria-live="polite"
-      className="relative z-50 border-b border-amber-400/40 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-950/60"
+      className="relative z-50 border-b border-warning/30 bg-warning/10"
     >
       {/* Progress fill */}
       <div
-        className="absolute inset-x-0 top-0 h-0.5 bg-amber-400 transition-all duration-500 dark:bg-amber-500"
+        className="absolute inset-x-0 top-0 h-0.5 bg-warning transition-all duration-500"
         style={{ width: `${Math.min(100, Math.max(2, pct))}%` }}
         aria-hidden
       />
 
       <div className="mx-auto flex max-w-6xl items-center gap-3 px-6 py-2.5">
-        <Zap className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+        <Zap className="h-4 w-4 shrink-0 text-warning" aria-hidden />
 
-        <p className="flex-1 text-sm text-amber-900 dark:text-amber-200">
+        <p className="flex-1 text-sm text-foreground">
           <span className="font-semibold">{label} in progress</span>
           {total > 0 && (
             <>
-              {" — "}
+              {": "}
               <span className="tabular-nums">
                 {completed.toLocaleString()} / {total.toLocaleString()}
               </span>{" "}
@@ -87,8 +87,8 @@ export function GenerationRunningBanner() {
             </>
           )}
           {". "}
-          <span className="text-amber-700 dark:text-amber-300">
-            Navigating away from this tab will cancel it.
+          <span className="text-warning">
+            Leaving this page or closing the tab will stop it.
           </span>
         </p>
 
@@ -96,14 +96,14 @@ export function GenerationRunningBanner() {
           type="button"
           aria-label="Dismiss banner"
           onClick={() => setDismissed(true)}
-          className="rounded-md p-1 text-amber-600 transition-colors hover:bg-amber-100 hover:text-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/40 dark:hover:text-amber-200"
+          className="rounded-md p-1 text-warning transition-colors hover:bg-warning/15 hover:text-foreground"
         >
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
 
       {latestPersonaName && (
-        <div className="mx-auto flex max-w-6xl px-6 pb-2 text-xs text-amber-700 dark:text-amber-400">
+        <div className="mx-auto flex max-w-6xl px-6 pb-2 text-xs text-warning">
           <AlertTriangle className="mr-1.5 h-3 w-3 shrink-0 translate-y-px" aria-hidden />
           Latest: {latestPersonaName}
         </div>

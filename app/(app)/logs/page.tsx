@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Tooltip,
   TooltipContent,
@@ -24,6 +25,7 @@ import {
   Activity,
   AlertCircle,
   Search,
+  Inbox,
 } from "lucide-react";
 import {
   useApiLogsStore,
@@ -193,11 +195,9 @@ export default function ApiLogsPage() {
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">API logs</h1>
         <p className="max-w-3xl text-sm text-muted-foreground">
-          Request-level traceability for every outbound LLM / SurveySparrow call
-          and every browser → Plumage API route hit. In-memory ring buffer —
-          last {serverStats?.summaryCap ?? 500} summaries kept, last{" "}
-          {serverStats?.payloadCap ?? 50} also retain full request/response
-          bodies for expansion. Process restart clears everything.
+          Every call made to your AI provider and SurveySparrow, plus calls to
+          this app&apos;s own API. Logs are kept in server memory (the counts
+          are shown below) and are cleared when the server restarts.
         </p>
       </header>
 
@@ -208,20 +208,20 @@ export default function ApiLogsPage() {
               <Activity className="h-4 w-4" />
               Recent calls
               {serverStats && (
-                <Badge variant="outline" className="font-mono text-[10px]">
-                  {serverStats.summaryCount}/{serverStats.summaryCap} summary ·{" "}
-                  {serverStats.payloadCount}/{serverStats.payloadCap} full
+                <Badge variant="outline" className="font-mono text-[11px]">
+                  {serverStats.summaryCount}/{serverStats.summaryCap} calls ·{" "}
+                  {serverStats.payloadCount}/{serverStats.payloadCap} with bodies
                 </Badge>
               )}
             </CardTitle>
             <CardDescription className="mt-1 text-xs">
-              Refreshes every 2 s while this tab is visible. Click a row to view
-              full request + response payloads.
+              Refreshes every 2 seconds while this tab is open. Click a row to
+              see the full request and response.
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={fetchServerLogs}
               disabled={refreshing}
@@ -233,10 +233,10 @@ export default function ApiLogsPage() {
               Refresh
             </Button>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={handleClear}
-              className="gap-1.5"
+              className="gap-1.5 text-muted-foreground hover:text-destructive"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Clear
@@ -245,10 +245,12 @@ export default function ApiLogsPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           {error && (
-            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
-              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>Couldn&apos;t fetch server logs: {error}</span>
-            </div>
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Couldn&apos;t fetch server logs: {error}
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Filter bar */}
@@ -288,10 +290,36 @@ export default function ApiLogsPage() {
 
           {/* Table */}
           {filtered.length === 0 ? (
-            <div className="rounded-md border bg-muted/20 p-6 text-center text-xs text-muted-foreground">
-              {merged.length === 0
-                ? "No API calls captured yet. Run a generation or test a connection to populate this view."
-                : "No entries match the current filters."}
+            <div className="flex flex-col items-center justify-center gap-2 rounded-md border bg-muted/20 px-6 py-10 text-center">
+              <Inbox className="h-6 w-6 text-muted-foreground/50" />
+              {merged.length === 0 ? (
+                <>
+                  <p className="text-sm font-medium">No API calls captured yet</p>
+                  <p className="max-w-sm text-xs text-muted-foreground">
+                    Run a generation or test a connection. Calls show up here as
+                    they happen.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-medium">No entries match your filters</p>
+                  <p className="max-w-sm text-xs text-muted-foreground">
+                    Try a different status, source, or search term.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-1"
+                    onClick={() => {
+                      setStatusFilter("all");
+                      setKindFilter("all");
+                      setQuery("");
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                </>
+              )}
             </div>
           ) : (
             <LogsTable entries={filtered} />
@@ -380,17 +408,14 @@ function LogsTable({ entries }: LogsTableProps) {
   return (
     <div className="overflow-x-auto rounded-md border">
       <table className="w-full text-xs">
-        <thead className="bg-muted/40 text-[10px] uppercase tracking-wide text-muted-foreground">
+        <thead className="bg-muted/40 text-[11px] uppercase tracking-wide text-muted-foreground">
           <tr>
             <th className="w-6 px-2 py-1.5" aria-label="expand" />
             <th className="px-2 py-1.5 text-left font-medium">Time</th>
-            <th className="px-2 py-1.5 text-left font-medium">Source</th>
-            <th className="px-2 py-1.5 text-left font-medium">Provider</th>
-            <th className="px-2 py-1.5 text-left font-medium">Method</th>
+            <th className="px-2 py-1.5 text-left font-medium">Call</th>
             <th className="px-2 py-1.5 text-left font-medium">Endpoint</th>
             <th className="px-2 py-1.5 text-right font-medium">Status</th>
             <th className="px-2 py-1.5 text-right font-medium">Duration</th>
-            <th className="px-2 py-1.5 text-right font-medium">Retries</th>
           </tr>
         </thead>
         <tbody>
@@ -400,8 +425,9 @@ function LogsTable({ entries }: LogsTableProps) {
         </tbody>
       </table>
       {entries.length > visible.length && (
-        <div className="border-t bg-muted/20 px-3 py-1.5 text-center text-[10px] text-muted-foreground">
-          Showing first {visible.length} of {entries.length} — refine filters to narrow.
+        <div className="border-t bg-muted/20 px-3 py-1.5 text-center text-[11px] text-muted-foreground">
+          Showing the first {visible.length} of {entries.length}. Use the filters
+          or search to narrow the list.
         </div>
       )}
     </div>
@@ -477,22 +503,27 @@ function LogRow({ entry }: { entry: MergedEntry }) {
         <td className="px-2 py-1.5 align-middle font-mono text-[11px] text-muted-foreground">
           {formatTime(entry.startedAt)}
         </td>
+        {/* Call — provider pill (colored by kind); browser-side entries get a
+            muted tag since they're the exception (no payload capture). */}
         <td className="px-2 py-1.5 align-middle">
-          <SourceBadge source={entry.source} />
+          <span className="inline-flex items-center gap-1.5">
+            <KindBadge kind={entry.kind} provider={entry.provider} />
+            {entry.source === "client" && (
+              <span className="text-[10px] text-muted-foreground">browser</span>
+            )}
+          </span>
         </td>
-        <td className="px-2 py-1.5 align-middle">
-          <KindBadge kind={entry.kind} provider={entry.provider} />
-        </td>
-        <td className="px-2 py-1.5 align-middle font-mono text-[10px]">
-          {entry.method}
-        </td>
-        <td className="max-w-[420px] truncate px-2 py-1.5 align-middle font-mono text-[10px]">
+        {/* Endpoint — devtools-style: muted method prefix + path. */}
+        <td className="max-w-[460px] truncate px-2 py-1.5 align-middle font-mono text-[11px]">
           <Tooltip>
             <TooltipTrigger asChild>
-              <span>{summarizeEndpoint(entry.endpoint)}</span>
+              <span>
+                <span className="mr-1.5 text-muted-foreground">{entry.method}</span>
+                {summarizeEndpoint(entry.endpoint)}
+              </span>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-md break-all font-mono text-[10px]">
-              {entry.endpoint}
+              {entry.method} {entry.endpoint}
               {entry.contextLabel && (
                 <div className="mt-1 text-muted-foreground">
                   ctx: {entry.contextLabel}
@@ -504,16 +535,30 @@ function LogRow({ entry }: { entry: MergedEntry }) {
         <td className="px-2 py-1.5 text-right align-middle">
           <StatusBadge entry={entry} />
         </td>
+        {/* Duration — with a retry chip only when retries actually happened;
+            a column of zeros was pure noise. */}
         <td className="px-2 py-1.5 text-right align-middle font-mono tabular-nums">
-          {entry.durationMs !== undefined ? `${entry.durationMs}ms` : "—"}
-        </td>
-        <td className="px-2 py-1.5 text-right align-middle font-mono tabular-nums">
-          {entry.retryCount ?? 0}
+          <span className="inline-flex items-center justify-end gap-1.5">
+            {(entry.retryCount ?? 0) > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-0.5 rounded-full bg-warning/10 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-warning">
+                    <RefreshCcw className="h-2.5 w-2.5" />
+                    {entry.retryCount}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Retried {entry.retryCount} time{entry.retryCount === 1 ? "" : "s"}.
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {entry.durationMs !== undefined ? `${entry.durationMs}ms` : "—"}
+          </span>
         </td>
       </tr>
       {open && (
         <tr className="bg-muted/10">
-          <td colSpan={9} className="px-3 py-2">
+          <td colSpan={6} className="px-3 py-2">
             <ExpandedDetail
               entry={entry}
               payloadStatus={payloadStatus}
@@ -568,6 +613,14 @@ function ExpandedDetail({
             <strong className="text-foreground">HTTP:</strong> {entry.httpStatus}
           </span>
         )}
+        <span>
+          <strong className="text-foreground">Source:</strong>{" "}
+          {entry.source === "server" ? "server" : "browser"}
+        </span>
+        <span>
+          <strong className="text-foreground">Retries:</strong>{" "}
+          {entry.retryCount ?? 0}
+        </span>
       </div>
 
       {entry.error && (
@@ -584,24 +637,26 @@ function ExpandedDetail({
       {/* Payload section */}
       {payloadStatus === "unavailable" && (
         <NotePanel tone="muted">
-          Browser-side entry — request and response bodies are captured
-          server-side. Use the matching server entry (if any) for full payload
-          inspection.
+          This call was logged in the browser, so its request and response
+          bodies weren&apos;t saved. Open the matching server entry, if there is
+          one, to see them.
         </NotePanel>
       )}
       {payloadStatus === "expired" && (
         <NotePanel tone="muted">
-          Payload expired — only summary retained. The server keeps the last
-          50 full payloads; older entries lose their bodies.
+          The request and response bodies for this call are gone. The server
+          only keeps bodies for the most recent calls, so older entries show
+          the summary only.
         </NotePanel>
       )}
       {payloadStatus === "error" && (
         <NotePanel tone="error">
-          Failed to fetch full payload. Try refreshing.
+          Couldn&apos;t load the request and response. Reload the page to try
+          again.
         </NotePanel>
       )}
       {payloadStatus === "loading" && (
-        <NotePanel tone="muted">Loading full payload…</NotePanel>
+        <NotePanel tone="muted">Loading request and response…</NotePanel>
       )}
       {payloadStatus === "loaded" && payload && (
         <PayloadSection payload={payload} />
@@ -691,7 +746,7 @@ function PayloadBlock({
         {pretty ?? <span className="italic text-muted-foreground">(empty)</span>}
       </pre>
       {truncated && (
-        <div className="border-t bg-amber-50/50 px-2 py-1 text-[10px] text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+        <div className="border-t bg-warning/10 px-2 py-1 text-[10px] text-warning">
           Truncated at 32 KB.
         </div>
       )}
@@ -709,40 +764,27 @@ function prettyJson(body: string | undefined): string | null {
 }
 
 // ---------------------------------------------------------------------------
-// Badges
+// Badges — all rendered through the shared Badge primitive (one shape idiom)
+// with compact table sizing. Tones map to the semantic theme tokens
+// (success / warning / destructive / accent / muted) so they follow
+// light and dark mode with the rest of the app.
 // ---------------------------------------------------------------------------
 
-function SourceBadge({ source }: { source: "client" | "server" }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none",
-        source === "server"
-          ? "border-blue-300/60 bg-blue-50 text-blue-700 dark:border-blue-700/40 dark:bg-blue-950/40 dark:text-blue-300"
-          : "border-slate-300/60 bg-slate-50 text-slate-700 dark:border-slate-700/40 dark:bg-slate-950/40 dark:text-slate-300",
-      )}
-    >
-      {source === "server" ? "server" : "browser"}
-    </span>
-  );
-}
+/** Compact size override for table cells — the primitive's default padding
+ *  is tuned for page-level badges, not dense rows. */
+const TABLE_BADGE = "px-1.5 py-0.5 text-[10px] leading-none";
 
 function KindBadge({ kind, provider }: { kind: ApiLogKind; provider: string }) {
   const tone =
     kind === "llm"
-      ? "border-violet-300/60 bg-violet-50 text-violet-700 dark:border-violet-700/40 dark:bg-violet-950/40 dark:text-violet-300"
+      ? "border-primary/30 bg-accent text-accent-foreground"
       : kind === "surveysparrow"
-        ? "border-emerald-300/60 bg-emerald-50 text-emerald-700 dark:border-emerald-700/40 dark:bg-emerald-950/40 dark:text-emerald-300"
-        : "border-slate-300/60 bg-slate-50 text-slate-700 dark:border-slate-700/40 dark:bg-slate-950/40 dark:text-slate-300";
+        ? "border-border bg-secondary text-secondary-foreground"
+        : "border-border bg-muted text-muted-foreground";
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none",
-        tone,
-      )}
-    >
+    <Badge variant="outline" className={cn(TABLE_BADGE, tone)}>
       {provider}
-    </span>
+    </Badge>
   );
 }
 
@@ -751,43 +793,41 @@ function StatusBadge({ entry }: { entry: ApiLogSummary }) {
   const map: Record<ApiLogStatus, { label: string; tone: string }> = {
     success: {
       label: httpStatus ? String(httpStatus) : "ok",
-      tone: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
+      tone: "border-transparent bg-success/10 text-success",
     },
     client_error: {
       label: httpStatus ? String(httpStatus) : "4xx",
-      tone: "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300",
+      tone: "border-transparent bg-destructive/10 text-destructive",
     },
     server_error: {
       label: httpStatus ? String(httpStatus) : "5xx",
-      tone: "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300",
+      tone: "border-transparent bg-destructive/10 text-destructive",
     },
     rate_limited: {
       label: "429",
-      tone: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300",
+      tone: "border-transparent bg-warning/10 text-warning",
     },
     network_error: {
       label: "net",
-      tone: "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300",
+      tone: "border-transparent bg-destructive/10 text-destructive",
     },
     aborted: {
       label: "abort",
-      tone: "bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-300",
+      tone: "border-transparent bg-muted text-muted-foreground",
     },
     in_progress: {
       label: "…",
-      tone: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300",
+      tone: "border-transparent bg-accent text-accent-foreground",
     },
   };
   const meta = map[status];
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold leading-none",
-        meta.tone,
-      )}
+    <Badge
+      variant="outline"
+      className={cn(TABLE_BADGE, "font-mono font-semibold", meta.tone)}
     >
       {meta.label}
-    </span>
+    </Badge>
   );
 }
 

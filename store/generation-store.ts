@@ -8,6 +8,7 @@ import {
   type ProfileDraft,
   type DemoProfile,
 } from "@/lib/profiles/types";
+import type { DatasetPurpose } from "@/lib/profiles/dataset-purposes";
 import { profileToDraft } from "@/lib/storage/profiles";
 
 // In-progress configuration draft for the Configure step. Persisted to
@@ -30,6 +31,10 @@ interface GenerationStore {
 
   setDraft: (mutator: (draft: ProfileDraft) => ProfileDraft | void) => void;
   setUseCase: (useCase: string) => void;
+  /** Set (or clear, with undefined) the Dataset Purpose preset. Never
+   *  mutates other draft fields — Dataset Purpose is a guidance layer
+   *  and manual overrides are always preserved. */
+  setDatasetPurpose: (purpose: DatasetPurpose | undefined) => void;
 
   /** Replace the entire draft (e.g. on profile load) and remember the source. */
   loadProfile: (profile: DemoProfile) => void;
@@ -57,6 +62,9 @@ export const useGenerationStore = create<GenerationStore>()(
 
       setUseCase: (useCase) =>
         set((s) => ({ draft: { ...s.draft, useCase } })),
+
+      setDatasetPurpose: (purpose) =>
+        set((s) => ({ draft: { ...s.draft, datasetPurpose: purpose } })),
 
       loadProfile: (profile) => {
         const draft = profileToDraft(profile);

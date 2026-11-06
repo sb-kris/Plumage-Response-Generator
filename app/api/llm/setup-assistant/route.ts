@@ -22,6 +22,7 @@ import {
   summarizeSetupErrors,
   validateSetupAssistantOutput,
 } from "@/lib/llm/setup-assistant-validator";
+import { assessSetupPurposeQuality } from "@/lib/llm/setup-assistant-quality";
 import {
   buildResearchBlock,
   fetchCompanyHomepage,
@@ -155,19 +156,31 @@ Your previous reply could not be parsed as JSON (${first.error ?? "parse error"}
   }
 
   let validation = validateSetupAssistantOutput(first.json);
+  // Gentle, purpose-aware quality read (never rejects — just soft warnings
+  // + an optional single repair hint). Empty for custom / unset purpose.
+  let quality = assessSetupPurposeQuality(body.inputs.datasetPurpose, validation.output);
 
-  // ---- Optional repair retry ----
-  // If the first response was structurally broken (e.g. no themes at all),
-  // try once more with the validator errors as a repair hint. We do NOT
-  // retry on rate limits (callLLMForJson already handles those) or on
-  // transport failures.
-  if (!validation.ok && validation.output.themes.length === 0) {
-    attemptReason = summarizeSetupErrors(validation.errors);
+  // ---- Optional repair retry (ONE attempt max) ----
+  // Fires when the first response was structurally broken (no themes) OR
+  // when it's schema-valid but a purpose-quality gap was detected (e.g. a
+  // market-research setup with no demographic variables). We do NOT retry
+  // on rate limits (callLLMForJson handles those) or transport failures.
+  const schemaNeedsRepair = !validation.ok && validation.output.themes.length === 0;
+  const qualityNeedsRepair = quality.repairHint != null;
+  if (schemaNeedsRepair || qualityNeedsRepair) {
+    const hintParts: string[] = [];
+    if (schemaNeedsRepair) {
+      attemptReason = summarizeSetupErrors(validation.errors);
+      hintParts.push(`the previous response failed validation: ${attemptReason}`);
+    }
+    if (qualityNeedsRepair && quality.repairHint) {
+      hintParts.push(quality.repairHint);
+    }
     const repairPrompt = `${prompt.userPrompt}
 
 ---
-REPAIR ATTEMPT — the previous response failed validation: ${attemptReason}
-Re-read the OUTPUT SCHEMA at the top of the system prompt and try again. Return only JSON.`;
+REPAIR ATTEMPT — improve the previous response. ${hintParts.join(" ")}
+Re-read the OUTPUT SCHEMA at the top of the system prompt and return only JSON.`;
     const repair = await callLLM({
       ...llmConfig,
       systemPrompt: prompt.systemPrompt,
@@ -176,11 +189,31 @@ Re-read the OUTPUT SCHEMA at the top of the system prompt and try again. Return 
     });
     if (repair.ok) {
       const v2 = validateSetupAssistantOutput(repair.json);
-      // Take the repair result only if it's strictly better (more themes).
-      if (v2.output.themes.length > validation.output.themes.length) {
+      const q2 = assessSetupPurposeQuality(body.inputs.datasetPurpose, v2.output);
+      // Accept the repair only if it doesn't drop theme count AND either
+      // recovers themes (schema fix) or reduces quality warnings. Otherwise
+      // keep the original — a repair should never make things worse.
+      const noThemeRegression =
+        v2.output.themes.length >= validation.output.themes.length;
+      const improvesSchema =
+        v2.output.themes.length > validation.output.themes.length;
+      const improvesQuality = q2.warnings.length < quality.warnings.length;
+      if (noThemeRegression && (improvesSchema || improvesQuality)) {
         validation = v2;
+        quality = q2;
       }
     }
+  }
+
+  // Surface any remaining quality warnings to the preview by folding them
+  // into the output's warnings (deduped). The dialog already renders
+  // output.warnings in "Notes from the assistant".
+  if (quality.warnings.length > 0) {
+    const merged = [...(validation.output.warnings ?? [])];
+    for (const w of quality.warnings) {
+      if (!merged.includes(w)) merged.push(w);
+    }
+    validation.output.warnings = merged;
   }
 
   // We return the validated output even on a soft fail — the dialog

@@ -47,7 +47,10 @@ import type {
   Question,
   QuestionLogic,
 } from "@/lib/surveysparrow/types";
-import { compareQuestionPositions } from "@/lib/surveysparrow/types";
+import {
+  compareQuestionPositions,
+  extractQuestionDisplay,
+} from "@/lib/surveysparrow/types";
 import type { AnswerValue } from "@/lib/generation/response-types";
 
 // ---------------------------------------------------------------------------
@@ -380,3 +383,161 @@ function stringEqual(a: unknown, b: unknown): boolean {
 
 // (parsePosition removed — replaced by compareQuestionPositions in
 // lib/surveysparrow/types.ts which correctly handles section ordering.)
+
+// ---------------------------------------------------------------------------
+// Human-readable description (was private inside response-prompt.ts;
+// extracted so QuestionPreview.tsx can render Conditional badges too)
+// ---------------------------------------------------------------------------
+//
+// Renders a QuestionLogic block as a one-liner intended for two consumers:
+//   1. The response prompt, which tells the LLM "you don't have to answer
+//      this for Promoters" as a token-saving hint (validator's evaluator
+//      is still the source of truth).
+//   2. Step 2's Question Preview, which shows the same string in a
+//      tooltip so SEs can see which upstream picks gate each question.
+//
+// Callers pass a `Map<number, Question>` for upstream lookup. That keeps
+// the helper independent of RenderedQuestion (the prompt module's
+// internal shape) and lets the Question Preview call it with raw
+// questions straight from the SS API.
+//
+// Examples:
+//   - Q3 includes choice "Yes, I attended a show" (id=1234)
+//   - Q5 ≤ 6 AND Q7 includes choice "Service" (id=789)
+//   - variable loyalty_tier equals "Gold"
+
+export function describeDisplayLogic(
+  logic: QuestionLogic | null | undefined,
+  questionsById: Map<number, Question>,
+): string | null {
+  if (!logic?.logics || logic.logics.length === 0) return null;
+  const parts: string[] = [];
+  for (let i = 0; i < logic.logics.length; i++) {
+    const c = logic.logics[i]!;
+    if (i > 0) {
+      parts.push(c.join_condition === "or" ? " OR " : " AND ");
+    }
+    parts.push(describeCondition(c, questionsById));
+  }
+  return parts.join("");
+}
+
+function describeCondition(
+  c: LogicCondition,
+  questionsById: Map<number, Question>,
+): string {
+  if (c.type === "variable") {
+    const v = c.variable_name ?? c.variable_id ?? "?";
+    if (c.comparator === "isAnswered") return `variable ${v} is set`;
+    if (c.comparator === "isNotAnswered") return `variable ${v} is empty`;
+    return `variable ${v} ${humanComparator(c.comparator)} ${JSON.stringify(c.value ?? "")}`;
+  }
+  // type === "question"
+  const qid = c.question_id ?? 0;
+  const upstream = questionsById.get(qid);
+  const upstreamDisplay = upstream ? extractQuestionDisplay(upstream) : null;
+  const ref = upstream ? `Q${upstream.position}` : `question id=${qid}`;
+  switch (c.comparator) {
+    case "isSelected": {
+      if (c.choice_id != null) {
+        const choiceText = upstreamDisplay?.choices?.find((ch) => ch.id === c.choice_id)?.text;
+        return choiceText
+          ? `${ref} includes choice "${choiceText}" (id=${c.choice_id})`
+          : `${ref} includes choice id=${c.choice_id}`;
+      }
+      return `${ref} has a selection`;
+    }
+    case "isNotSelected": {
+      if (c.choice_id != null) {
+        const choiceText = upstreamDisplay?.choices?.find((ch) => ch.id === c.choice_id)?.text;
+        return choiceText
+          ? `${ref} does NOT include choice "${choiceText}" (id=${c.choice_id})`
+          : `${ref} does NOT include choice id=${c.choice_id}`;
+      }
+      return `${ref} has no selection`;
+    }
+    case "isAnswered":
+      return `${ref} is answered`;
+    case "isNotAnswered":
+      return `${ref} is not answered`;
+    default:
+      return `${ref} ${humanComparator(c.comparator)} ${JSON.stringify(c.value ?? "")}`;
+  }
+}
+
+function humanComparator(c: string): string {
+  switch (c) {
+    case "equals": return "=";
+    case "notEquals": return "≠";
+    case "greaterThan": return ">";
+    case "lessThan": return "<";
+    case "greaterThanOrEqual": return "≥";
+    case "lessThanOrEqual": return "≤";
+    case "contains": return "contains";
+    case "doesNotContain": return "does NOT contain";
+    case "startsWith": return "starts with";
+    case "endsWith": return "ends with";
+    default: return c;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Piping heuristic (see comment: SS API does NOT expose piping metadata)
+// ---------------------------------------------------------------------------
+//
+// SurveySparrow's `/v3/questions` payload does NOT surface piping refs as
+// dedicated fields (no `piped_question_id`, no `piped_choice_id`, no
+// `source_question_id`). The SS dashboard's piping feature inserts
+// workspace-specific tokens into the question's rtxt/html_text field, but
+// the token format is undocumented and varies. So we can't reliably
+// resolve "this question is piped from Q3" from what the API gives us.
+//
+// This heuristic scans a question's rendered text for common placeholder
+// patterns and flags the question as MAYBE-piped so the SE can spot-check
+// generated answers. Never asserts confident detection — the badge in
+// QuestionPreview says "may use piping" not "piped from ...".
+//
+// Detected patterns:
+//   {{...}}    Handlebars-style ({{Q1}}, {{previous_answer}})
+//   [[...]]    Markdown-linkish ([[Q1]], [[choice]])
+//   #...#      Hash-delimited (#Q1#, #Answer#)
+//   [Q1]       Bracketed question ref
+//   %Q1%       Percent-delimited
+//   @{...}     At-brace
+//
+// Kept liberal on purpose — false positives are fine (worst case: SE sees
+// a warning on a non-piped question); false negatives are worse (SE
+// doesn't know piping might be broken).
+
+const PIPING_TOKEN_PATTERNS: RegExp[] = [
+  /\{\{[^{}]{1,80}\}\}/,
+  /\[\[[^\[\]]{1,80}\]\]/,
+  /#[A-Za-z][A-Za-z0-9_]{0,60}#/,
+  /\[Q\d{1,4}[^\]]{0,20}\]/i,
+  /%[A-Za-z][A-Za-z0-9_]{0,60}%/,
+  /@\{[^{}]{1,80}\}/,
+];
+
+/**
+ * Returns true if the question's rendered text contains a token that
+ * *looks* like a piping placeholder. See the module comment above for
+ * caveats — this is a heuristic, not a confident detection.
+ */
+export function detectPipingHeuristic(q: Question): boolean {
+  const display = extractQuestionDisplay(q);
+  const candidates: string[] = [display.text, display.description ?? ""];
+  // Also probe common raw fields in case rtxt HTML holds tokens the
+  // display extractor stripped for readability.
+  const rawFields: Array<keyof Question> = ["rtxt", "text", "html_text", "question_text", "title"];
+  for (const key of rawFields) {
+    const v = q[key];
+    if (typeof v === "string") candidates.push(v);
+  }
+  for (const text of candidates) {
+    if (!text) continue;
+    for (const re of PIPING_TOKEN_PATTERNS) {
+      if (re.test(text)) return true;
+    }
+  }
+  return false;
+}

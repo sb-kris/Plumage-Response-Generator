@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useGenerationStore } from "@/store/generation-store";
+import { getSectionOverride } from "@/lib/profiles/dataset-purposes";
+import { PriorityBadge } from "@/components/generate/configure/shared/PriorityBadge";
+import { PurposeWarnings } from "@/components/generate/configure/shared/PurposeWarnings";
 import {
   getLanguage,
   isSupportedLanguage,
@@ -51,6 +54,13 @@ const SOFT_DILUTE_THRESHOLD = 5;
 export function LanguagesSection() {
   const distribution = useGenerationStore((s) => s.draft.languageDistribution);
   const setDraft = useGenerationStore((s) => s.setDraft);
+  const datasetPurpose = useGenerationStore((s) => s.draft.datasetPurpose);
+
+  // Dataset Purpose can reframe the title/description ("Language mix" for
+  // multilingual demos) and flag a priority. GUIDANCE ONLY — the weight
+  // rebalancing and language logic are untouched.
+  const override = getSectionOverride(datasetPurpose, "languages");
+  const title = override?.label ?? "Languages";
 
   // Locks are session-only — never persisted in the saved profile.
   const [lockedCodes, setLockedCodes] = useState<Set<string>>(() => new Set());
@@ -85,7 +95,7 @@ export function LanguagesSection() {
     });
 
     toast.warning("Unsupported languages removed", {
-      description: `Plumage doesn't support: ${unsupported
+      description: `Plumage doesn't support ${unsupported
         .map((l) => l.code)
         .join(", ")}. Their weight was added to English.`,
     });
@@ -164,8 +174,8 @@ export function LanguagesSection() {
       ];
     });
     if (distribution.length + 1 > SOFT_DILUTE_THRESHOLD) {
-      toast.message("Heads up — many languages", {
-        description: `${distribution.length + 1} languages may dilute realism per persona. Auto-balance to spread cleanly.`,
+      toast.message("That's a lot of languages", {
+        description: `With ${distribution.length + 1} languages, each one gets only a small share of the personas. Click Auto-balance to split 100% evenly.`,
       });
     }
   }
@@ -200,13 +210,13 @@ export function LanguagesSection() {
             <div>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Globe className="h-4 w-4" />
-                Languages
+                {title}
                 <SumBadge sum={sum} />
+                <PriorityBadge priority={override?.priority} className="font-normal" />
               </CardTitle>
               <CardDescription>
-                Distribute responses across languages. Personas write open-text
-                answers in their assigned language, with locale-appropriate
-                names, cities, and timezones.
+                {override?.description ??
+                  "Split responses across languages. Each persona answers open-text questions in its assigned language, with names, cities, and time zones that fit that language."}
               </CardDescription>
             </div>
             <Tooltip>
@@ -230,6 +240,7 @@ export function LanguagesSection() {
         </CardHeader>
 
         <CardContent className="space-y-4">
+          <PurposeWarnings section="languages" />
           <ul className="space-y-3">
             {distribution.map((entry) => {
               const lang = getLanguage(entry.code);
@@ -301,8 +312,8 @@ export function LanguagesSection() {
                         </TooltipTrigger>
                         <TooltipContent side="left" className="max-w-xs">
                           {isLocked
-                            ? "Locked — won't auto-adjust when other sliders change."
-                            : "Click to lock this value while you adjust others."}
+                            ? "Locked. This value stays put when you move other sliders."
+                            : "Click to lock this value while you adjust the others."}
                         </TooltipContent>
                       </Tooltip>
 
@@ -326,7 +337,7 @@ export function LanguagesSection() {
                         <TooltipContent side="left" className="max-w-xs">
                           {isEnglish
                             ? "English is always available."
-                            : "Remove this language. Its weight will redistribute proportionally."}
+                            : "Remove this language. Its share is split across the remaining languages."}
                         </TooltipContent>
                       </Tooltip>
                     </div>
@@ -374,7 +385,7 @@ export function LanguagesSection() {
             />
             {onlyEnglish && (
               <p className="text-xs text-muted-foreground">
-                Add another language to redistribute the 100% allocation.
+                Add another language to split responses across more than English.
               </p>
             )}
           </div>
@@ -384,10 +395,9 @@ export function LanguagesSection() {
             <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-2.5 py-2 text-xs text-warning">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
-                Make sure all selected languages are enabled in your
-                SurveySparrow survey&apos;s language settings. Responses with
-                unconfigured languages may not display correctly in the
-                platform.
+                Turn on every language listed here in the survey&apos;s
+                language settings in SurveySparrow. Responses in a language
+                the survey doesn&apos;t have may not display correctly.
               </span>
             </div>
           )}
@@ -396,18 +406,17 @@ export function LanguagesSection() {
             <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-2.5 text-xs text-warning">
               <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
-                Languages should sum to 100% — currently <strong>{sum}%</strong>.
-                Use Auto-balance or adjust manually. (You can save and continue
-                anyway, but the persona language assignments may be off.)
+                Languages add up to <strong>{sum}%</strong> and should total 100%.
+                Click Auto-balance or adjust the sliders. You can still save and
+                continue, but personas may get the wrong languages.
               </span>
             </div>
           )}
 
           <div className="rounded-md border bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground">
-            Each language assigns personas to plausible countries based on real
-            speaker distributions — names, cities, phone formats, and timezones
-            all align. Click the &quot;more&quot; chip on a language to see the
-            full country breakdown.
+            Each language places personas in countries where it&apos;s actually
+            spoken, so names, cities, phone formats, and time zones match. Click
+            the &quot;more&quot; chip under a language to see its full country list.
           </div>
         </CardContent>
       </Card>

@@ -16,14 +16,14 @@ interface PreferencesStore {
   cursorEffects: boolean;
   setCursorEffects: (v: boolean) => void;
   /** When true, the push-complete celebration plays a short audio cue.
-   *  Defaults to ON. Persisted to localStorage under `plumage_sound_enabled`
+   *  Defaults to OFF: SEs often run Plumage while screen-sharing with a
+   *  customer, so audio is opt-in. Persisted to localStorage under `plumage_sound_enabled`
    *  (separate key from the other preferences so it can be read by the
    *  audio code at fire time without subscribing to the store). */
   soundEnabled: boolean;
   setSoundEnabled: (v: boolean) => void;
   /** When true, button clicks across the app play a soft chime. Defaults
-   *  to ON — the click is short and quiet enough to feel like tactile
-   *  feedback rather than noise. Persisted to localStorage under
+   *  to OFF (opt-in, same screen-share reasoning as soundEnabled). Persisted to localStorage under
    *  `plumage_click_sound_enabled`. */
   clickSoundEnabled: boolean;
   setClickSoundEnabled: (v: boolean) => void;
@@ -34,7 +34,7 @@ export const usePreferencesStore = create<PreferencesStore>()(
     (set) => ({
       cursorEffects: false,
       setCursorEffects: (v) => set({ cursorEffects: v }),
-      soundEnabled: true,
+      soundEnabled: false,
       setSoundEnabled: (v) => {
         set({ soundEnabled: v });
         try {
@@ -43,7 +43,7 @@ export const usePreferencesStore = create<PreferencesStore>()(
           /* private browsing — settings just won't persist */
         }
       },
-      clickSoundEnabled: true,
+      clickSoundEnabled: false,
       setClickSoundEnabled: (v) => {
         set({ clickSoundEnabled: v });
         try {

@@ -14,6 +14,7 @@ import { BasicPreviewCard } from "./BasicPreviewCard";
 import { PushToSurveySparrowCard } from "./PushToSurveySparrowCard";
 import { RecoveryCard } from "./RecoveryCard";
 import { DebugPanel } from "./DebugPanel";
+import { StaleRunAlert } from "../shared/StaleRunAlert";
 
 // Step 4 — Generate & Push.
 //
@@ -103,6 +104,11 @@ export function GenerateAndPushStep() {
           Back to personas
         </Button>
       </div>
+
+      {/* Survey-mismatch guard. Responses for another survey block the push;
+          before any responses exist, flag personas built for another survey. */}
+      <StaleRunAlert scope="responses" />
+      {responses.length === 0 && <StaleRunAlert scope="personas" />}
 
       {status === "running" ? (
         <GeneratingCard gen={gen} />

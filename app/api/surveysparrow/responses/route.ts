@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
     submitted,
     processed: 0,
     failed: 0,
-    error: `Couldn't confirm completion after ${totalWaitSeconds}s of polling. SS may have finalised the batch in the background — check the survey's response list before pushing again to avoid duplicates.`,
+    error: `SurveySparrow didn't confirm the batch within ${totalWaitSeconds}s. It may still finish in the background. Check the survey's responses in SurveySparrow before you push again, or you may end up with duplicates.`,
     timedOut: true,
   });
 }

@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useResponsesStore } from "@/store/responses-store";
+import { useSurveyStore } from "@/store/survey-store";
+import { useGenerationStore } from "@/store/generation-store";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   ArrowLeft,
   CheckCircle2,
+  Info,
   Loader2,
   RefreshCw,
   Send,
@@ -24,6 +27,7 @@ import {
 } from "lucide-react";
 import type { PushResponsesHookState } from "./usePushResponses";
 import { DebugPanel } from "./DebugPanel";
+import { PushConfirmDialog } from "./PushConfirmDialog";
 import { RotatingLoadingMessage } from "@/components/ui/RotatingLoadingMessage";
 import { PUSH_MESSAGES } from "@/lib/copy/loading-messages";
 import { celebrateFirstPush, replayCelebration } from "@/lib/effects/celebrate";
@@ -48,25 +52,48 @@ export function PushToSurveySparrowCard({ pushHook, onBack, autoStart }: Props) 
   const pushPhase = useResponsesStore((s) => s.pushPhase);
   const variableStats = useResponsesStore((s) => s.variableStats);
   const responses = useResponsesStore((s) => s.responses);
+  // Generation-time warnings surfaced by the validator (missing required
+  // answers, invalid MCQ/Matrix shapes, missing variables, unsupported
+  // types, etc.). Preview card shows detail; Push card shows the count so
+  // SEs see the pre-push status at a glance.
+  const generationWarnings = useResponsesStore((s) => s.progress.warnings);
   const { push, pushAgain, cancel, canPush, reasonNotReady } = pushHook;
+  // Tags make demo data easy to find and remove later in SurveySparrow.
+  const tagsConfig = useGenerationStore((s) => s.draft.systemMetadata.tags);
+  const pushTags = tagsConfig.enabled ? tagsConfig.values : [];
+  const surveyName = useSurveyStore(
+    (s) => s.surveys.data?.find((x) => x.id === s.selectedSurveyId)?.name ?? null,
+  );
 
-  // Auto-start push when skip-preview is active (signalled by the parent).
+  // Which confirmation is open. Every push path that sends to a NEW
+  // destination decision goes through PushConfirmDialog; "Retry failed" and
+  // "Send remaining" skip it because they continue a push already confirmed.
+  const [confirmMode, setConfirmMode] = useState<"push" | "again" | null>(null);
+
+  // Skip-preview lands here straight after generation. It skips the preview
+  // table, NOT the confirmation: open the dialog instead of pushing.
   useEffect(() => {
     if (autoStart && canPush) {
-      void push();
+      setConfirmMode("push");
     }
-    // Only run once on mount — intentionally no deps on `push` reference.
+    // Only run once on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // First-push celebration — fires once per session when a push completes
   // with zero failures. Module-level guard in celebrateFirstPush prevents
   // re-firing on subsequent successful pushes.
+  const notSentCount = responses.filter((r) => r.status === "generated").length;
   useEffect(() => {
-    if (pushStatus === "complete" && pushProgress.failed === 0 && pushProgress.pushed > 0) {
+    if (
+      pushStatus === "complete" &&
+      pushProgress.failed === 0 &&
+      pushProgress.pushed > 0 &&
+      notSentCount === 0
+    ) {
       void celebrateFirstPush();
     }
-  }, [pushStatus, pushProgress.failed, pushProgress.pushed]);
+  }, [pushStatus, pushProgress.failed, pushProgress.pushed, notSentCount]);
 
   // Failure cue — fires once each time a push completes with any failures.
   // Distinct from celebration: we WANT this to fire every time (not session-
@@ -90,8 +117,24 @@ export function PushToSurveySparrowCard({ pushHook, onBack, autoStart }: Props) 
   const failedResponses = responses.filter((r) => r.status === "failed");
   const pushedCount = responses.filter((r) => r.status === "pushed").length;
   // Responses still in "generated" after completion = were never attempted (cancelled).
-  const remainingCount = responses.filter((r) => r.status === "generated").length;
+  const remainingCount = notSentCount;
   const wasCancelled = isComplete && remainingCount > 0;
+  const toSendCount = responses.length - pushedCount;
+
+  const confirmDialog = (
+    <PushConfirmDialog
+      open={confirmMode !== null}
+      onOpenChange={(o) => !o && setConfirmMode(null)}
+      mode={confirmMode ?? "push"}
+      count={confirmMode === "again" ? responses.length : toSendCount}
+      onConfirm={() => {
+        const mode = confirmMode;
+        setConfirmMode(null);
+        if (mode === "again") void pushAgain();
+        else void push();
+      }}
+    />
+  );
 
   if (pushStatus === "idle") {
     return (
@@ -102,9 +145,13 @@ export function PushToSurveySparrowCard({ pushHook, onBack, autoStart }: Props) 
             <CardTitle>Push to SurveySparrow</CardTitle>
           </div>
           <CardDescription>
-            {pushProgress.total > 0
-              ? `Send ${responses.length.toLocaleString()} responses to your SurveySparrow survey.`
-              : `Send ${responses.length.toLocaleString()} generated responses to SurveySparrow.`}
+            Send {toSendCount.toLocaleString()} response{toSendCount === 1 ? "" : "s"} to{" "}
+            {surveyName ? (
+              <span className="font-medium text-foreground">&ldquo;{surveyName}&rdquo;</span>
+            ) : (
+              "your SurveySparrow survey"
+            )}
+            . You&apos;ll confirm the destination before anything is sent.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -115,28 +162,45 @@ export function PushToSurveySparrowCard({ pushHook, onBack, autoStart }: Props) 
               <AlertDescription>{reasonNotReady}</AlertDescription>
             </Alert>
           )}
+          {generationWarnings.length > 0 && (
+            <Alert variant="warning">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertTitle>
+                {generationWarnings.length}{" "}
+                {generationWarnings.length === 1 ? "response has" : "responses have"}{" "}
+                validation warnings
+              </AlertTitle>
+              <AlertDescription className="text-xs">
+                They will still be pushed, but some answers may be missing.
+                Click Back to preview to see which personas are affected.
+              </AlertDescription>
+            </Alert>
+          )}
+          <ApiLimitationsAlert />
           <div className="flex flex-wrap gap-2">
             <Button
               size="lg"
-              onClick={() => void push()}
-              disabled={!canPush}
+              onClick={() => setConfirmMode("push")}
+              disabled={!canPush || toSendCount === 0}
               className="gap-2"
             >
               <Send className="h-4 w-4" />
-              Push {responses.length.toLocaleString()} responses
+              Push {toSendCount.toLocaleString()} response{toSendCount === 1 ? "" : "s"}…
             </Button>
             <Button variant="outline" size="lg" onClick={onBack} className="gap-2">
               Back to preview
             </Button>
           </div>
         </CardContent>
+        {confirmDialog}
       </Card>
     );
   }
 
   // Organic shape on the celebratory state only — running and partial-fail
   // states keep the standard rectilinear card so they don't read as "done".
-  const isSuccessComplete = isComplete && pushProgress.failed === 0;
+  const isSuccessComplete =
+    isComplete && pushProgress.failed === 0 && !wasCancelled && pushedCount > 0;
 
   return (
     <Card className={isSuccessComplete ? "card-organic-static" : undefined}>
@@ -144,17 +208,19 @@ export function PushToSurveySparrowCard({ pushHook, onBack, autoStart }: Props) 
         <div className="flex items-center gap-2">
           {isRunning ? (
             <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          ) : pushProgress.failed === 0 ? (
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
+          ) : isSuccessComplete ? (
+            <CheckCircle2 className="h-5 w-5 text-success" />
           ) : (
-            <ShieldAlert className="h-5 w-5 text-amber-500" />
+            <ShieldAlert className="h-5 w-5 text-warning" />
           )}
           <CardTitle>
             {isRunning
               ? "Pushing to SurveySparrow…"
-              : pushProgress.failed === 0
+              : isSuccessComplete
                 ? "All responses pushed"
-                : `Push complete — ${pushProgress.failed} failed`}
+                : wasCancelled
+                  ? `Push stopped: ${remainingCount.toLocaleString()} not sent`
+                  : `Push finished: ${pushProgress.failed} failed`}
           </CardTitle>
         </div>
         <CardDescription>
@@ -169,7 +235,7 @@ export function PushToSurveySparrowCard({ pushHook, onBack, autoStart }: Props) 
               <span className="flex flex-wrap items-baseline gap-x-2">
                 <RotatingLoadingMessage pool={PUSH_MESSAGES} />
                 <span className="text-xs opacity-70">
-                  {pushProgress.pushed + pushProgress.failed} of {pushProgress.total} sent — up to 3 in parallel.
+                  {pushProgress.pushed + pushProgress.failed} of {pushProgress.total} sent, in batches of up to 100.
                 </span>
               </span>
             )
@@ -228,7 +294,7 @@ export function PushToSurveySparrowCard({ pushHook, onBack, autoStart }: Props) 
             />
           </div>
           {pushProgress.failed > 0 && (
-            <p className="text-xs text-amber-600 dark:text-amber-400">
+            <p className="text-xs text-warning">
               {pushProgress.failed} failed so far
             </p>
           )}
@@ -261,14 +327,21 @@ export function PushToSurveySparrowCard({ pushHook, onBack, autoStart }: Props) 
         )}
 
         {/* Success banner */}
-        {isComplete && failedResponses.length === 0 && (
+        {isSuccessComplete && (
           <Alert className="relative">
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
+            <CheckCircle2 className="h-4 w-4 text-success" />
             <AlertTitle className="pr-20">
               {pushedCount.toLocaleString()} responses are now in SurveySparrow
             </AlertTitle>
             <AlertDescription className="pr-20">
-              They will appear in your survey&apos;s Responses tab within a few seconds.
+              They appear in your survey&apos;s Responses tab within a few seconds.
+              {pushTags.length > 0 && (
+                <>
+                  {" "}They&apos;re tagged <code className="rounded bg-muted px-1 font-mono text-xs">{pushTags.join(", ")}</code>,
+                  so you can filter by that tag in SurveySparrow to find or delete this
+                  demo data later.
+                </>
+              )}
             </AlertDescription>
             {/* Replay celebration — animated speaker icon (webm) top-right.
                 On click: re-fires confetti + celebration sound. Sized to
@@ -279,6 +352,16 @@ export function PushToSurveySparrowCard({ pushHook, onBack, autoStart }: Props) 
               label="Replay celebration sound"
               className="absolute right-3 top-1/2 h-14 w-14 -translate-y-1/2"
             />
+          </Alert>
+        )}
+
+        {/* Pushing can become blocked after a push finished, e.g. when the
+            user switches survey. Say why here too, not only on the idle card. */}
+        {isComplete && !canPush && reasonNotReady && (
+          <Alert variant="warning">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertTitle>Can&apos;t push again</AlertTitle>
+            <AlertDescription>{reasonNotReady}</AlertDescription>
           </Alert>
         )}
 
@@ -302,7 +385,7 @@ export function PushToSurveySparrowCard({ pushHook, onBack, autoStart }: Props) 
                 size="sm"
                 onClick={onBack}
                 className="gap-1.5"
-                title="Push continues in the background. Click Push to return here."
+                title="The push keeps running in the background. Click View push progress to come back here."
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Back to preview
@@ -314,6 +397,7 @@ export function PushToSurveySparrowCard({ pushHook, onBack, autoStart }: Props) 
             <Button
               size="sm"
               onClick={() => void push()}
+              disabled={!canPush}
               className="gap-1.5"
             >
               <Send className="h-3.5 w-3.5" />
@@ -332,12 +416,13 @@ export function PushToSurveySparrowCard({ pushHook, onBack, autoStart }: Props) 
             <Button
               variant="outline"
               size="sm"
-              onClick={() => void pushAgain()}
+              onClick={() => setConfirmMode("again")}
+              disabled={!canPush}
               className="gap-1.5"
-              title="Resets every response and pushes the full set again."
+              title="Sends the full set again, which creates duplicate responses in SurveySparrow."
             >
               <RefreshCw className="h-3.5 w-3.5" />
-              Push another copy
+              Push another copy…
             </Button>
           )}
           {isComplete && (
@@ -348,6 +433,40 @@ export function PushToSurveySparrowCard({ pushHook, onBack, autoStart }: Props) 
           )}
         </div>
       </CardContent>
+      {confirmDialog}
     </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// API-limitations alert (State D pre-push view only)
+// ---------------------------------------------------------------------------
+//
+// Collapsible callout that sets expectations before push. Uses native
+// <details>/<summary> to avoid pulling in @radix-ui/react-collapsible for
+// a single toggle. Default state = collapsed (users who've seen it once
+// don't need it in their face on every subsequent push).
+
+function ApiLimitationsAlert() {
+  return (
+    <Alert variant="default" className="border-muted-foreground/20">
+      <Info className="h-4 w-4 text-muted-foreground" />
+      <details>
+        <summary className="cursor-pointer list-none text-sm font-medium">
+          What SurveySparrow&apos;s API can and can&apos;t fill in
+          <span className="ml-2 text-xs font-normal text-muted-foreground">
+            (click to expand)
+          </span>
+        </summary>
+        <AlertDescription className="pt-2 text-xs text-muted-foreground">
+          SurveySparrow&apos;s batch response API creates completed responses, which
+          show up in response tables and dashboards. These responses don&apos;t come
+          from a real browser session, so session analytics such as drop-off
+          funnels, page timing, completion duration, and session recordings may
+          not fill in the same way. Plumage can&apos;t work around this; it&apos;s
+          how SurveySparrow&apos;s API behaves.
+        </AlertDescription>
+      </details>
+    </Alert>
   );
 }

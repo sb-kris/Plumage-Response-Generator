@@ -129,7 +129,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<BatchResponse
     seenNames.add(lcName);
     const type = (v.type ?? "STRING").toUpperCase();
     if (!ALLOWED_TYPES.has(type)) {
-      sanitiseErrors.push(`variables[${i}].type "${type}" not supported — must be STRING / NUMBER / DATE.`);
+      sanitiseErrors.push(`variables[${i}]: type "${type}" isn't supported. Use STRING, NUMBER, or DATE.`);
       continue;
     }
     const label = (v.label ?? name).slice(0, MAX_LABEL_CHARS);

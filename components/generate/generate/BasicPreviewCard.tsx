@@ -152,7 +152,7 @@ export function BasicPreviewCard({ gen, onPush }: Props) {
   function handleDownloadCsv() {
     if (!questions || questions.length === 0) {
       toast.error("Questions not loaded", {
-        description: "Cannot build CSV — survey questions are not available.",
+        description: "The survey questions aren't loaded, so the CSV can't be built. Reload the survey in step 1 and try again.",
       });
       return;
     }
@@ -160,14 +160,14 @@ export function BasicPreviewCard({ gen, onPush }: Props) {
     // Hard block on the 5 000-row limit.
     if (responses.length > MAX_CSV_ROWS) {
       toast.error("Too many responses for CSV import", {
-        description: `CSV import is limited to 5,000 rows. You have ${responses.length.toLocaleString()}. Generate fewer responses or split into batches.`,
+        description: `CSV import takes up to 5,000 rows and you have ${responses.length.toLocaleString()}. Generate fewer responses, or use Push to SurveySparrow instead.`,
       });
       return;
     }
 
     const survey = surveys?.find((s) => s.id === selectedSurveyId);
     if (!survey) {
-      toast.error("Survey not found — cannot build filename.");
+      toast.error("Couldn't find the selected survey to name the CSV. Pick it again in step 1.");
       return;
     }
 
@@ -268,7 +268,7 @@ export function BasicPreviewCard({ gen, onPush }: Props) {
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 shrink-0 text-green-500" />
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
               <CardTitle className="truncate">
                 <AnimatedNumber value={responses.length} /> responses generated
               </CardTitle>
@@ -316,8 +316,8 @@ export function BasicPreviewCard({ gen, onPush }: Props) {
           </div>
           <CardDescription>
             {cardExpanded
-              ? "Click a row to inspect the raw answer JSON."
-              : "Click to expand and inspect responses, or use the Push button above."}
+              ? "Click a row to see its raw answers as JSON."
+              : "Click here to show the responses, or use the push button above."}
           </CardDescription>
         </CardHeader>
 
@@ -374,7 +374,7 @@ export function BasicPreviewCard({ gen, onPush }: Props) {
             <Alert variant="warning">
               <ShieldAlert className="h-4 w-4" />
               <AlertTitle>
-                {warnings.length} persona{warnings.length === 1 ? "" : "s"} fell back to best-effort answers
+                {warnings.length} persona{warnings.length === 1 ? "" : "s"} may have missing or incomplete answers
               </AlertTitle>
               <AlertDescription className="space-y-1">
                 {warnings.slice(0, 3).map((w, i) => (
@@ -384,7 +384,7 @@ export function BasicPreviewCard({ gen, onPush }: Props) {
                 ))}
                 {warnings.length > 3 && (
                   <div className="text-[10px] text-muted-foreground">
-                    (+{warnings.length - 3} more — expand a row to see the partial answers)
+                    (+{warnings.length - 3} more. Expand a row to see what was saved.)
                   </div>
                 )}
               </AlertDescription>
@@ -394,15 +394,21 @@ export function BasicPreviewCard({ gen, onPush }: Props) {
           {/* Push-status banner — shown when returning to preview after a push */}
           {(pushedCount > 0 || failedCount > 0) && (
             <Alert>
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              {allPushed ? (
+                <CheckCircle2 className="h-4 w-4 text-success" />
+              ) : (
+                <ShieldAlert className="h-4 w-4 text-warning" />
+              )}
               <AlertTitle>
-                {pushedCount.toLocaleString()} pushed
+                {pushedCount.toLocaleString()} of {responses.length.toLocaleString()} pushed
                 {failedCount > 0 ? ` · ${failedCount} failed` : ""}
               </AlertTitle>
               <AlertDescription>
-                {failedCount > 0
-                  ? "Some responses didn't make it to SurveySparrow. Use Push to retry failed ones."
-                  : "All responses are live in your SurveySparrow workspace's Responses tab."}
+                {allPushed
+                  ? "All responses are live in your SurveySparrow survey's Responses tab."
+                  : failedCount > 0
+                    ? "Some responses didn't reach SurveySparrow. Use the push button to retry them."
+                    : `${remainingForPush.toLocaleString()} haven't been sent yet. Use the push button to send the rest.`}
               </AlertDescription>
             </Alert>
           )}
@@ -418,7 +424,7 @@ export function BasicPreviewCard({ gen, onPush }: Props) {
               options={[
                 { value: "all",       label: "All",       count: responses.length },
                 { value: "promoter",  label: "Promoter",  count: sentimentCounts.promoter,  tone: "success" },
-                { value: "passive",   label: "Passive",   count: sentimentCounts.passive,   tone: "neutral" },
+                { value: "passive",   label: "Passive",   count: sentimentCounts.passive,   tone: "muted" },
                 { value: "detractor", label: "Detractor", count: sentimentCounts.detractor, tone: "danger" },
               ]}
             />

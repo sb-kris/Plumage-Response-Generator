@@ -143,7 +143,7 @@ export function DebugPanel() {
             className={cn(
               "ml-1 rounded px-1 py-0.5 text-[10px] font-mono tabular-nums",
               metrics.rlCount > 0
-                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                ? "bg-warning/10 text-warning"
                 : "bg-muted text-muted-foreground",
             )}
           >
@@ -233,13 +233,13 @@ export function DebugPanel() {
                   className={cn(
                     "flex gap-2 px-3 py-0.5 hover:bg-muted/20",
                     entry.kind === "worker_fail" || entry.kind === "rate_limit" || entry.kind === "batch_fail"
-                      ? "text-amber-600 dark:text-amber-400"
+                      ? "text-warning"
                       : entry.kind === "retry"
-                        ? "text-orange-500 dark:text-orange-400"
+                        ? "text-warning"
                         : entry.kind === "worker_done" || entry.kind === "batch_ok"
-                          ? "text-green-600 dark:text-green-400"
+                          ? "text-success"
                           : entry.kind === "info"
-                            ? "text-blue-500 dark:text-blue-400"
+                            ? "text-primary"
                             : "text-muted-foreground",
                   )}
                 >
@@ -330,7 +330,7 @@ function Metric({
           highlight
             ? "text-primary"
             : warn
-              ? "text-amber-600 dark:text-amber-400"
+              ? "text-warning"
               : "text-foreground",
         )}
       >

@@ -43,6 +43,11 @@ import {
   type SurveySparrowVariableSummary,
   type VariableSuggestion,
 } from "@/lib/generation/setup-assistant-types";
+import {
+  getDatasetPurposeMeta,
+  getPurposePersonaLabels,
+  type DatasetPurpose,
+} from "@/lib/profiles/dataset-purposes";
 import { useGenerationStore } from "@/store/generation-store";
 import { useSetupStore } from "@/store/setup-store";
 import { useSurveyStore } from "@/store/survey-store";
@@ -80,6 +85,9 @@ interface ApplyToggles {
   timing: boolean;
   // Variables are per-row, not per-section.
 }
+
+/** Max length of the free-text Notes field sent to the assistant. */
+const NOTES_MAX_CHARS = 1000;
 
 export function SetupAssistantDialog({ open, onOpenChange }: Props) {
   const draft = useGenerationStore((s) => s.draft);
@@ -169,16 +177,16 @@ export function SetupAssistantDialog({ open, onOpenChange }: Props) {
 
   // ---- Guard rails ----
   const blockingError = (() => {
-    if (!ss.apiKey) return "SurveySparrow API key is missing — go back to Setup.";
-    if (!llmSetup.apiKey) return "LLM API key is missing — go back to Setup.";
-    if (!surveyId || !survey) return "No survey selected — pick one in Step 1.";
+    if (!ss.apiKey) return "Add your SurveySparrow API key on the Setup page first.";
+    if (!llmSetup.apiKey) return "Add your LLM API key on the Setup page first.";
+    if (!surveyId || !survey) return "No survey selected. Close this, click Change survey, and pick one.";
     return null;
   })();
 
   // ---- Submit (Step 1 → Step 2 → Step 3) ----
   async function handleGenerate() {
     if (!companyName.trim()) {
-      toast.error("Company name is required.");
+      toast.error("Enter a company name first.");
       return;
     }
     if (!survey || !surveyId) return;
@@ -231,6 +239,10 @@ export function SetupAssistantDialog({ open, onOpenChange }: Props) {
         companyWebsite: companyWebsite.trim() || undefined,
         sentimentShape,
         notes: notes.trim() || undefined,
+        // Pass the Configure page's selected Dataset Purpose through as
+        // guidance for the prompt. When undefined or "custom", the
+        // prompt builder returns null and the prompt is unchanged.
+        datasetPurpose: draft.datasetPurpose,
       },
       survey: {
         name: survey.name,
@@ -347,7 +359,7 @@ export function SetupAssistantDialog({ open, onOpenChange }: Props) {
     const additionalWarnings: string[] = [];
     if (ssMissingFromLLM.length > 0) {
       additionalWarnings.push(
-        `${ssMissingFromLLM.length} SurveySparrow variable${ssMissingFromLLM.length === 1 ? "" : "s"} weren't enriched (${ssMissingFromLLM.slice(0, 3).map((v) => v.name).join(", ")}${ssMissingFromLLM.length > 3 ? "…" : ""}). Add them manually in the Custom Variables section if you need them.`,
+        `The assistant didn't suggest values for ${ssMissingFromLLM.length} SurveySparrow variable${ssMissingFromLLM.length === 1 ? "" : "s"} (${ssMissingFromLLM.slice(0, 3).map((v) => v.name).join(", ")}${ssMissingFromLLM.length > 3 ? "…" : ""}). If you need ${ssMissingFromLLM.length === 1 ? "it" : "them"}, add ${ssMissingFromLLM.length === 1 ? "it" : "them"} yourself in the Custom variables section.`,
       );
     }
 
@@ -405,9 +417,10 @@ export function SetupAssistantDialog({ open, onOpenChange }: Props) {
               AI Setup Assistant
             </DialogTitle>
             <DialogDescription>
-              Generate a tailored use case, themes, persona distribution, and custom
-              variables based on your company + the selected survey. Nothing is applied
-              until you click <strong>Apply selected</strong>.
+              Enter a company name and the assistant drafts the use case context,
+              themes, persona distribution, response timing, and custom variables for
+              the selected survey. Nothing changes until you click{" "}
+              <strong>Apply selected</strong>.
             </DialogDescription>
           </DialogHeader>
 
@@ -430,6 +443,7 @@ export function SetupAssistantDialog({ open, onOpenChange }: Props) {
                 setNotes={setNotes}
                 surveyName={survey?.name ?? ""}
                 surveyType={survey?.survey_type ?? ""}
+                datasetPurpose={draft.datasetPurpose}
                 costEstimate={setupCostEstimate}
                 responseModelLabel={getModel(llmSetup.responseModel)?.label ?? llmSetup.responseModel}
               />
@@ -450,6 +464,7 @@ export function SetupAssistantDialog({ open, onOpenChange }: Props) {
                   setVariablesToAdd={setVariablesToAdd}
                   draftHasContext={Boolean(draft.useCase)}
                   draftHasThemes={draft.themes.length > 0}
+                  datasetPurpose={draft.datasetPurpose}
                 />
               )
             )}
@@ -458,6 +473,11 @@ export function SetupAssistantDialog({ open, onOpenChange }: Props) {
           <DialogFooter className="border-t bg-muted/30 px-6 py-3">
             {!blockingError && step === "inputs" && (
               <>
+                {!companyName.trim() && (
+                  <span className="text-xs text-muted-foreground sm:mr-auto sm:self-center">
+                    Enter a company name to continue.
+                  </span>
+                )}
                 <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
                 <Button onClick={handleGenerate} disabled={!companyName.trim()} className="gap-1.5">
                   <Sparkles className="h-3.5 w-3.5" />
@@ -509,6 +529,11 @@ interface InputsStepProps {
   setNotes: (v: string) => void;
   surveyName: string;
   surveyType: string;
+  /** Read-only reflection of the Configure page's Dataset Purpose. When
+   *  set, a small chip renders under the "Generating for" panel so the SE
+   *  knows the Assistant will bias suggestions toward this preset. Never
+   *  edited from inside the dialog — the source of truth is ContextSection. */
+  datasetPurpose: DatasetPurpose | undefined;
   /** Pre-run cost estimate from the parent. The block renders only when
    *  pricing is known; otherwise we show a soft "Pricing unavailable" note. */
   costEstimate: AiSetupCostEstimate;
@@ -518,6 +543,9 @@ interface InputsStepProps {
 }
 
 function InputsStep(p: InputsStepProps) {
+  const purposeMeta = p.datasetPurpose
+    ? getDatasetPurposeMeta(p.datasetPurpose)
+    : null;
   return (
     <div className="space-y-5">
       <div className="rounded-lg border bg-muted/30 px-3 py-2.5 text-xs">
@@ -531,12 +559,20 @@ function InputsStep(p: InputsStepProps) {
             {p.surveyType}
           </div>
         )}
+        {purposeMeta && (
+          <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span>Dataset purpose:</span>
+            <span className="inline-flex items-center rounded-full border border-primary/40 bg-primary/5 px-2 py-0.5 text-[10px] font-medium text-primary">
+              {purposeMeta.label}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="setup-company">
-            <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />Company name</span>
+            <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />Company name <span className="text-destructive">*</span></span>
           </Label>
           <Input
             id="setup-company"
@@ -582,8 +618,9 @@ function InputsStep(p: InputsStepProps) {
                   {active && <CircleCheck className="h-4 w-4 text-primary" />}
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">{s.description}</div>
-                <div className="mt-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                  {s.distribution.promoter}% / {s.distribution.passive}% / {s.distribution.detractor}%
+                <div className="mt-1.5 text-xs tabular-nums text-muted-foreground">
+                  Promoters {s.distribution.promoter}% · Passives {s.distribution.passive}% · Detractors{" "}
+                  {s.distribution.detractor}%
                 </div>
               </button>
             );
@@ -598,12 +635,12 @@ function InputsStep(p: InputsStepProps) {
           value={p.notes}
           onChange={(e) => p.setNotes(e.target.value)}
           placeholder="What should this demo emphasise? Specific products, regions, customer segments, or pain points?"
-          rows={3}
-          maxLength={500}
-          className="resize-none"
+          rows={5}
+          maxLength={NOTES_MAX_CHARS}
+          className="resize-y"
         />
-        <div className="text-[10px] text-muted-foreground">
-          {p.notes.length}/500
+        <div className="text-xs tabular-nums text-muted-foreground">
+          {p.notes.length.toLocaleString()} / {NOTES_MAX_CHARS.toLocaleString()}
         </div>
       </div>
 
@@ -617,14 +654,17 @@ function InputsStep(p: InputsStepProps) {
           <span className="font-mono tabular-nums">
             {p.costEstimate.pricingUnavailable || p.costEstimate.estimatedCost == null
               ? "Pricing unavailable"
-              : `~${formatAiSetupCost(p.costEstimate.estimatedCost)}`}
+              : p.costEstimate.estimatedCost < 0.01
+                ? "Under 1¢"
+                : `About ${formatAiSetupCost(p.costEstimate.estimatedCost)}`}
           </span>
         </div>
         <div className="mt-0.5">
-          Uses your selected response model · <span className="font-medium">{p.responseModelLabel}</span>
+          Uses your response model: <span className="font-medium">{p.responseModelLabel}</span>
         </div>
         <div className="mt-0.5 opacity-80">
-          Usually under $0.02 — covers the single assistant call before persona + response generation. The Configure cost panel covers the full pipeline separately.
+          This covers one AI Setup call and is usually under 2¢. Generating personas
+          and responses costs extra; see the Estimated Cost panel on this page.
         </div>
       </div>
     </div>
@@ -642,12 +682,12 @@ function LoadingStep({ companyName, providerSupportsSearch }: { companyName: str
       <div className="text-sm font-medium">Generating brief for {companyName}…</div>
       <div className="max-w-sm text-xs text-muted-foreground">
         {providerSupportsSearch
-          ? "Researching the company on the web, fetching SurveySparrow variables, and asking your LLM for tailored context, themes, and custom variables."
-          : "Reading the company homepage, fetching SurveySparrow variables, and asking your LLM for tailored context, themes, and custom variables."}
+          ? "Searching the web for the company, loading your SurveySparrow variables, and asking your LLM to draft the context, themes, and custom variables."
+          : "Reading the company homepage, loading your SurveySparrow variables, and asking your LLM to draft the context, themes, and custom variables."}
       </div>
       {providerSupportsSearch && (
         <div className="text-[10px] text-muted-foreground/80">
-          (web search can take 30–60s — Anthropic's research tool is doing the legwork)
+          Web search can take 30 to 60 seconds.
         </div>
       )}
     </div>
@@ -666,9 +706,21 @@ interface PreviewStepProps {
   setVariablesToAdd: (s: Set<string>) => void;
   draftHasContext: boolean;
   draftHasThemes: boolean;
+  /** Drives display-only relabeling of the themes card + persona tiles.
+   *  The underlying JSON fields are unchanged. */
+  datasetPurpose: DatasetPurpose | undefined;
 }
 
 function PreviewStep(p: PreviewStepProps) {
+  // Display-only labels — themes vocabulary + persona bucket labels for
+  // the selected purpose. Falls back to the default "Themes" /
+  // Promoters/Passives/Detractors for custom / unset.
+  const themesLabel = getDatasetPurposeMeta(p.datasetPurpose).themesVocabulary;
+  const personaLabels = getPurposePersonaLabels(p.datasetPurpose);
+  const promoterLabel = personaLabels?.promoter.label ?? "Promoters";
+  const passiveLabel = personaLabels?.passive.label ?? "Passives";
+  const detractorLabel = personaLabels?.detractor.label ?? "Detractors";
+
   function toggle<K extends keyof ApplyToggles>(key: K) {
     p.setToggles({ ...p.toggles, [key]: !p.toggles[key] });
   }
@@ -700,7 +752,7 @@ function PreviewStep(p: PreviewStepProps) {
       </SectionCard>
 
       <SectionCard
-        title={`Themes (${p.suggestion.themes.length})`}
+        title={`${themesLabel} (${p.suggestion.themes.length})`}
         applied={p.toggles.themes}
         onToggle={() => toggle("themes")}
         replaceWarning={p.draftHasThemes}
@@ -709,7 +761,7 @@ function PreviewStep(p: PreviewStepProps) {
           {p.suggestion.themes.map((t) => (
             <Badge key={t.id} variant="secondary" className="font-normal">
               {t.label}
-              <span className="ml-1.5 text-[10px] text-muted-foreground">w {t.weight}</span>
+              <span className="ml-1.5 text-[10px] text-muted-foreground">weight {t.weight}</span>
             </Badge>
           ))}
         </div>
@@ -721,9 +773,9 @@ function PreviewStep(p: PreviewStepProps) {
         onToggle={() => toggle("personaDistribution")}
       >
         <div className="grid grid-cols-3 gap-3 text-center text-xs">
-          <DistTile label="Promoters" value={p.suggestion.personaDistribution.promoter} tone="success" />
-          <DistTile label="Passives" value={p.suggestion.personaDistribution.passive} tone="neutral" />
-          <DistTile label="Detractors" value={p.suggestion.personaDistribution.detractor} tone="danger" />
+          <DistTile label={promoterLabel} value={p.suggestion.personaDistribution.promoter} tone="success" />
+          <DistTile label={passiveLabel} value={p.suggestion.personaDistribution.passive} tone="neutral" />
+          <DistTile label={detractorLabel} value={p.suggestion.personaDistribution.detractor} tone="danger" />
         </div>
       </SectionCard>
 
@@ -742,7 +794,7 @@ function PreviewStep(p: PreviewStepProps) {
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold">Custom variables ({p.suggestion.variables.length} suggested)</h4>
           <span className="text-[10px] text-muted-foreground">
-            Tick the ones you want — duplicates are skipped.
+            Tick the ones to add. Variables you already have are skipped.
           </span>
         </div>
         {p.suggestion.variables.length === 0 ? (
@@ -797,7 +849,7 @@ function SectionCard({
         <div className="flex items-center gap-2">
           <h4 className="text-sm font-semibold">{title}</h4>
           {replaceWarning && applied && (
-            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+            <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-medium text-warning">
               Will replace existing
             </span>
           )}
@@ -824,8 +876,8 @@ function SectionCard({
 
 function DistTile({ label, value, tone }: { label: string; value: number; tone: "success" | "neutral" | "danger" }) {
   const cls =
-    tone === "success" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-    : tone === "danger" ? "bg-red-500/15 text-red-700 dark:text-red-300"
+    tone === "success" ? "bg-success/15 text-success"
+    : tone === "danger" ? "bg-destructive/15 text-destructive"
     : "bg-muted text-foreground";
   return (
     <div className={cn("rounded-md px-2 py-2", cls)}>
@@ -881,10 +933,10 @@ function VariableRow({
           </span>
           {suggestion.source === "surveysparrow_variable" ? (
             <span
-              className="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-emerald-700 dark:text-emerald-300"
-              title="Exists in your SurveySparrow workspace. Values shown were enriched by the LLM for this demo — only the definition is reused."
+              className="rounded-full bg-success/15 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-success"
+              title="This variable already exists in your SurveySparrow workspace, so Plumage reuses it. The LLM suggested the values shown for this demo."
             >
-              SS · AI-enriched
+              SS · AI values
             </span>
           ) : (
             <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-primary">
@@ -914,7 +966,7 @@ function ErrorStep({ message, onRetry }: { message: string; onRetry: () => void 
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
       <AlertTriangle className="h-6 w-6 text-destructive" />
-      <div className="text-sm font-medium">Assistant failed</div>
+      <div className="text-sm font-medium">AI Setup failed</div>
       <div className="max-w-md text-xs text-muted-foreground">{message}</div>
       <Button size="sm" variant="outline" onClick={onRetry} className="mt-2">
         Adjust inputs

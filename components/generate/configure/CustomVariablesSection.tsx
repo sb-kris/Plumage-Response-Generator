@@ -1,14 +1,20 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useGenerationStore } from "@/store/generation-store";
 import type {
   CustomVariable,
   CustomVariableValues,
   PersonaFieldKey,
-  StringValueOption,
 } from "@/lib/profiles/types";
 import { PERSONA_FIELD_OPTIONS } from "@/lib/profiles/types";
+import {
+  getSectionOverride,
+  getPurposeVariablePresets,
+  type PurposeVariablePreset,
+} from "@/lib/profiles/dataset-purposes";
+import { PriorityBadge } from "@/components/generate/configure/shared/PriorityBadge";
+import { PurposeWarnings } from "@/components/generate/configure/shared/PurposeWarnings";
 import {
   rebalanceToTotal,
   removeKeyAndRedistribute,
@@ -45,12 +51,12 @@ import { cn } from "@/lib/utils";
 // Presets
 // ---------------------------------------------------------------------------
 
-interface VariablePreset {
-  label: string;
-  apiIdentifier: string;
-  description: string;
-  options: StringValueOption[];
-}
+// Preset chips reuse the shared PurposeVariablePreset shape so purpose-
+// specific presets (from DATASET_PURPOSES) and the generic fallback
+// presets below are the same type and flow through one openPreset path.
+// Generic presets are all STRING (options only) — valid because the
+// non-STRING fields on PurposeVariablePreset are optional.
+type VariablePreset = PurposeVariablePreset;
 
 const PRESETS: VariablePreset[] = [
   {
@@ -119,13 +125,13 @@ type VariableType = "STRING" | "NUMBER" | "DATE" | "PERSONA";
 /** Surface labels + tooltips for each type — the order is also the render
  *  order in the segmented control. */
 const TYPE_OPTIONS: Array<{ id: VariableType; tooltip: string }> = [
-  { id: "STRING", tooltip: "Weighted list of static text options." },
-  { id: "NUMBER", tooltip: "Numeric value — fixed or random within a range." },
-  { id: "DATE", tooltip: "Date — relative window from submission or an absolute range." },
+  { id: "STRING", tooltip: "Text values picked from a weighted list, or based on examples you give." },
+  { id: "NUMBER", tooltip: "A number, either fixed or random within a range." },
+  { id: "DATE", tooltip: "A date from the last N days, or between two dates you set." },
   {
     id: "PERSONA",
     tooltip:
-      "Maps this variable to a persona field — each response gets that persona's actual value (e.g. first name, email).",
+      "Fills this variable from the persona, so each response gets that persona's own value (for example, first name or email).",
   },
 ];
 
@@ -199,18 +205,60 @@ function deriveIdentifier(label: string): string {
 }
 
 function presetToForm(preset: VariablePreset): VariableForm {
-  return {
+  const base: VariableForm = {
     ...EMPTY_FORM,
     label: preset.label,
     apiIdentifier: preset.apiIdentifier,
     apiIdentifierTouched: true,
-    type: "STRING",
-    stringOptions: preset.options.map((o) => ({
-      id: crypto.randomUUID(),
-      text: o.text,
-      weight: o.weight,
-    })),
+    type: preset.type ?? "STRING",
   };
+
+  switch (preset.type ?? "STRING") {
+    case "NUMBER":
+      return {
+        ...base,
+        numberMode: "range",
+        numberMin: preset.number ? String(preset.number.min) : EMPTY_FORM.numberMin,
+        numberMax: preset.number ? String(preset.number.max) : EMPTY_FORM.numberMax,
+        numberAllowDecimals: preset.number?.allowDecimals ?? false,
+        numberDecimalPlaces:
+          preset.number?.decimalPlaces != null
+            ? String(preset.number.decimalPlaces)
+            : EMPTY_FORM.numberDecimalPlaces,
+      };
+    case "DATE":
+      return {
+        ...base,
+        dateMode: "relative",
+        dateRelativeDays: preset.date
+          ? String(preset.date.relativeDays)
+          : EMPTY_FORM.dateRelativeDays,
+      };
+    case "PERSONA": {
+      // Narrow the preset's plain-string personaField to a known
+      // PersonaFieldKey; fall back to "" if it isn't one (defensive —
+      // our presets only use valid keys).
+      const match = PERSONA_FIELD_OPTIONS.find((o) => o.key === preset.personaField);
+      return { ...base, personaField: match ? match.key : "" };
+    }
+    case "STRING":
+    default:
+      return {
+        ...base,
+        type: "STRING",
+        stringMode: "options",
+        stringOptions: (preset.options ?? []).map((o) => ({
+          id: crypto.randomUUID(),
+          text: o.text,
+          weight: o.weight,
+        })),
+        stringAllowBlank: preset.allowBlank ?? false,
+        stringBlankWeight:
+          preset.blankWeight != null
+            ? String(preset.blankWeight)
+            : EMPTY_FORM.stringBlankWeight,
+      };
+  }
 }
 
 function variableToForm(v: CustomVariable): VariableForm {
@@ -329,7 +377,7 @@ function validateForm(
   if (form.label.length > 64) errs.push("Label must be 64 characters or fewer.");
   if (!form.apiIdentifier) errs.push("API Identifier is required.");
   else if (!/^[a-z0-9_]{1,35}$/.test(form.apiIdentifier))
-    errs.push("API Identifier: 1–35 lowercase letters, digits, or underscores.");
+    errs.push("API Identifier must be 1 to 35 characters: lowercase letters, digits, or underscores.");
   else if (variables.some((v) => v.apiIdentifier === form.apiIdentifier && v.id !== editingId))
     errs.push("API Identifier is already in use by another variable.");
 
@@ -370,7 +418,7 @@ function validateForm(
   }
   if (form.type === "DATE" && form.dateMode === "relative") {
     const days = parseInt(form.dateRelativeDays, 10);
-    if (isNaN(days) || days < 1 || days > 365) errs.push("Relative days must be 1–365.");
+    if (isNaN(days) || days < 1 || days > 365) errs.push("Days must be between 1 and 365.");
   }
   if (form.type === "DATE" && form.dateMode === "range") {
     if (!form.dateStart || !form.dateEnd) errs.push("Enter both start and end dates.");
@@ -404,13 +452,13 @@ function valueSummary(v: CustomVariable): string {
     const c = v.values.config;
     const dec = c.allowDecimals ? ` · ${c.decimalPlaces ?? 2}-dp decimals` : "";
     if (c.mode === "static") return `Static: ${c.staticValue ?? 0}`;
-    return `Range: ${c.min ?? "?"} – ${c.max ?? "?"}${dec}`;
+    return `Range: ${c.min ?? "?"} to ${c.max ?? "?"}${dec}`;
   }
   if (v.values.kind === "date") {
     const c = v.values.config;
     if (c.mode === "relative") return `Last ${c.relativeDays ?? 30} days`;
     if (c.start && c.end)
-      return `${new Date(c.start).toLocaleDateString()} – ${new Date(c.end).toLocaleDateString()}`;
+      return `${new Date(c.start).toLocaleDateString()} to ${new Date(c.end).toLocaleDateString()}`;
   }
   // persona_field is rendered with monospace markup via PersonaFieldPreview
   // in the row, so the summary string is only a screen-reader fallback.
@@ -439,6 +487,26 @@ function PersonaFieldPreview({ field }: { field: PersonaFieldKey }) {
 export function CustomVariablesSection() {
   const variables = useGenerationStore((s) => s.draft.customVariables);
   const setDraft = useGenerationStore((s) => s.setDraft);
+  const datasetPurpose = useGenerationStore((s) => s.draft.datasetPurpose);
+
+  // Dataset Purpose can reframe title/description ("Demographics &
+  // segments", "Hierarchy variables", "Ticket & support variables", …)
+  // and flag a priority. GUIDANCE ONLY — variable creation, editing,
+  // and push behavior are untouched.
+  const sectionOverride = getSectionOverride(datasetPurpose, "variables");
+  const sectionTitle = sectionOverride?.label ?? "Custom variables";
+
+  // Preset chips are purpose-aware: purpose-specific presets show first,
+  // then the generic presets that the purpose set didn't already cover
+  // (deduped by apiIdentifier). With no purpose this is just the generic
+  // PRESETS list, exactly as before. Clicking a chip still only opens the
+  // editor pre-filled — nothing is auto-added.
+  const presetChips = useMemo(() => {
+    const purposePresets = getPurposeVariablePresets(datasetPurpose);
+    if (purposePresets.length === 0) return PRESETS;
+    const seen = new Set(purposePresets.map((p) => p.apiIdentifier));
+    return [...purposePresets, ...PRESETS.filter((p) => !seen.has(p.apiIdentifier))];
+  }, [datasetPurpose]);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -640,21 +708,22 @@ export function CustomVariablesSection() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Boxes className="h-4 w-4" />
-            Custom Variables
+            {sectionTitle}
+            <PriorityBadge priority={sectionOverride?.priority} className="font-normal" />
           </CardTitle>
           <CardDescription>
-            Define workspace variables that Plumage injects into each generated
-            response. Use STRING options for weighted lists, NUMBER for ranges or
-            fixed values, and DATE for relative or absolute windows.
+            {sectionOverride?.description ??
+              "Variables Plumage fills in on each generated response. Use STRING for text values, NUMBER for a fixed number or a range, and DATE for recent days or a set date range. PERSONA pulls a value from each persona."}
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">
+          <PurposeWarnings section="variables" />
           {/* Preset chips */}
           <div className="space-y-1.5">
             <p className="text-xs text-muted-foreground">Suggestions</p>
             <div className="flex flex-wrap gap-2">
-              {PRESETS.map((p) => {
+              {presetChips.map((p) => {
                 const added = alreadyAddedIds.has(p.apiIdentifier);
                 return (
                   <Tooltip key={p.apiIdentifier}>
@@ -699,15 +768,12 @@ export function CustomVariablesSection() {
             <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-2.5 py-2 text-xs text-warning">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
-                Plumage will check these variables before pushing responses.
-                Existing SurveySparrow variables are reused; any missing
-                AI-suggested variables are created automatically via{" "}
-                <code className="rounded bg-warning/20 px-1 font-mono text-[10px]">
-                  /v3/variables/batch
-                </code>{" "}
-                first. Only variable <em>definitions</em> are created in SS —
-                the suggested option values stay inside Plumage and drive
-                realistic response payloads.
+                Before pushing responses, Plumage checks that each variable
+                exists in your SurveySparrow workspace. Existing variables are
+                reused. Missing ones are created for you. Only the variable
+                itself (name and type) is created in SurveySparrow. The values
+                you set here stay in Plumage and are used to fill in each
+                response.
               </span>
             </div>
           )}
@@ -982,10 +1048,10 @@ export function CustomVariablesSection() {
 
 function TypeBadge({ type }: { type: VariableType }) {
   const colors: Record<VariableType, string> = {
-    STRING: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
-    NUMBER: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
-    DATE: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-    PERSONA: "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20",
+    STRING: "bg-muted text-muted-foreground border-border",
+    NUMBER: "bg-muted text-muted-foreground border-border",
+    DATE: "bg-muted text-muted-foreground border-border",
+    PERSONA: "bg-accent text-accent-foreground border-primary/30",
   };
   return (
     <span
@@ -1081,8 +1147,9 @@ function StringConfig({
           ))}
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Use fixed options for known segments, or examples when Plumage should
-          generate similar values.
+          Use Fixed options when you know the exact values. Use Generate from
+          examples for things like ticket IDs, where each response needs a
+          slightly different value.
         </p>
       </div>
 
@@ -1124,8 +1191,8 @@ function StringConfig({
           Allow blank value
         </label>
         <p className="text-[11px] text-muted-foreground">
-          Include blank when some responses should not carry this variable.
-          Blank values are sent as empty strings to SurveySparrow.
+          Turn this on if some responses shouldn&apos;t have a value for this
+          variable. Blank values are sent to SurveySparrow as empty text.
         </p>
         {allowBlank && (
           <div className="flex items-center gap-2 pt-1">
@@ -1212,8 +1279,8 @@ function StringExamplesEditor({
             </div>
           ))}
           <p className="pt-1 text-[11px] text-muted-foreground">
-            Digit runs in IDs are randomized per response (e.g. <code className="font-mono">TCK-102938</code> →{" "}
-            <code className="font-mono">TCK-184502</code>). Free-form text is rotated verbatim — add more variants for variety.
+            Digits in an example change on each response (for example, <code className="font-mono">TCK-102938</code> →{" "}
+            <code className="font-mono">TCK-184502</code>). Other text is used exactly as written, so add more examples for variety.
           </p>
         </div>
       )}
@@ -1316,7 +1383,7 @@ function StringOptionsEditor({
                 optionSumOk ? "text-muted-foreground" : "text-warning",
               )}
             >
-              Total: {optionSum}%{!optionSumOk && " ⚠ should be 100"}
+              Total: {optionSum}%{!optionSumOk && " (should be 100%)"}
             </span>
             <Button
               type="button"
@@ -1401,7 +1468,7 @@ function NumberConfig({
               className="h-8 w-24 text-sm"
             />
           </div>
-          <span className="mt-5 text-muted-foreground">–</span>
+          <span className="mt-5 text-xs text-muted-foreground">to</span>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Max</label>
             <Input
@@ -1437,7 +1504,7 @@ function NumberConfig({
           Allow decimals
         </label>
         <p className="text-[11px] text-muted-foreground">
-          Keep off for counts and IDs. Turn on for currency, amounts, scores, or measurements.
+          Leave off for counts and IDs. Turn on for money, scores, or measurements.
         </p>
         {allowDecimals && (
           <div className="flex items-center gap-2 pt-1">
@@ -1522,7 +1589,7 @@ function DateConfig({
               className="h-8 text-sm"
             />
           </div>
-          <span className="mt-5 text-muted-foreground">–</span>
+          <span className="mt-5 text-xs text-muted-foreground">to</span>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">End</label>
             <Input

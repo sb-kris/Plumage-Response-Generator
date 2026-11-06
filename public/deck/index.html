@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Flock — Weave + Plumage for SurveySparrow demos</title>
+    <title>Flock — SurveySparrow GTM Toolkit</title>
     <meta
       name="description"
-      content="Flock pairs Weave (survey builder) with Plumage (response generator) for end-to-end SurveySparrow demos. Built for SEs, Implementation, and CSMs."
+      content="Flock is the internal SurveySparrow GTM toolkit: Weave, Plumage, Quill, and Nest help teams build demos, generate data, explore accounts, and create commercial documents faster."
     />
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" href="/icon.svg" />
@@ -20,9 +20,8 @@
 
     <style>
       /* ========================================================================
-         CSS variables — pulled from Plumage's globals.css with the brand-purple
-         tweak (deck content leans into the logo's purple, not the product's
-         in-app indigo, since this is brand/marketing content).
+         CSS variables — carried over from the original Flock deck. Deck content
+         leans into the logo's purple (brand), not the in-app indigo.
          ======================================================================== */
       :root[data-theme="dark"] {
         --bg: 240 6% 6%;
@@ -71,9 +70,7 @@
         --bad: #dc2626;
       }
 
-      /* ========================================================================
-         Reset + base
-         ======================================================================== */
+      /* ====================== Reset + base ==================================== */
       *,
       *::before,
       *::after {
@@ -113,10 +110,16 @@
         background: var(--accent);
         color: white;
       }
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+        border-radius: 6px;
+      }
+      section[id] {
+        scroll-margin-top: 82px;
+      }
 
-      /* ========================================================================
-         Layout primitives
-         ======================================================================== */
+      /* ====================== Layout primitives =============================== */
       .container {
         width: 100%;
         max-width: 1200px;
@@ -124,7 +127,7 @@
         padding-inline: clamp(20px, 4vw, 48px);
       }
       .section {
-        padding-block: clamp(80px, 12vw, 160px);
+        padding-block: clamp(72px, 9vw, 128px);
         position: relative;
       }
       .section--hero {
@@ -133,12 +136,16 @@
         display: grid;
         place-items: center;
       }
+      .section-head {
+        max-width: 62ch;
+        margin-bottom: clamp(36px, 5vw, 60px);
+      }
+      .section-head--center {
+        margin-inline: auto;
+        text-align: center;
+      }
 
-      /* ========================================================================
-         Full-width site nav — sticky top bar with brand on the left and
-         the theme toggle pill on the right. Glass background blurs the
-         page content underneath without competing for attention.
-         ======================================================================== */
+      /* ====================== Sticky nav ===================================== */
       .site-nav {
         position: sticky;
         top: 0;
@@ -157,12 +164,10 @@
         justify-content: space-between;
         gap: 16px;
       }
-      /* Brand cluster — gradient-tinted icon container + stacked text. */
       .site-nav__brand {
         display: inline-flex;
         align-items: center;
         gap: 14px;
-        text-decoration: none;
         color: inherit;
         transition: transform 200ms ease;
       }
@@ -170,9 +175,6 @@
         transform: translateY(-1px);
       }
       .site-nav__icon {
-        /* Transparent slot — no gradient fill or shadow. The logo SVG
-           carries its own visual identity (matches the Plumage app's
-           Wordmark.tsx pattern: image only, no container chrome). */
         width: 40px;
         height: 40px;
         display: grid;
@@ -203,7 +205,29 @@
         color: hsl(var(--muted));
         margin-top: 3px;
       }
-      /* Theme pill — icon + label inside a glass capsule. */
+      .site-nav__links {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-left: auto;
+      }
+      .site-nav__links a {
+        font-size: 13.5px;
+        font-weight: 500;
+        color: hsl(var(--muted));
+        padding: 7px 12px;
+        border-radius: 9px;
+        transition: color 180ms ease, background 180ms ease;
+      }
+      .site-nav__links a:hover {
+        color: hsl(var(--fg));
+        background: hsl(var(--bg-elev) / 0.6);
+      }
+      .site-nav__right {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
       .site-nav__theme {
         appearance: none;
         font-family: inherit;
@@ -220,7 +244,7 @@
         cursor: pointer;
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
-        transition: border-color 200ms ease, background 200ms ease, transform 200ms ease;
+        transition: border-color 200ms ease, background 200ms ease;
       }
       .site-nav__theme:hover {
         border-color: hsl(var(--brand-2) / 0.5);
@@ -240,17 +264,27 @@
       :root[data-theme="light"] .site-nav__theme .icon-moon {
         display: none;
       }
-      /* Tighter brand cluster on narrow screens — drop the subtitle if
-         it'd wrap and squeeze the pill off-screen. */
+      .site-nav__theme span {
+        display: none;
+      }
+      @media (min-width: 700px) {
+        .site-nav__theme span {
+          display: inline;
+        }
+      }
+      /* Nav links collapse first on smaller screens; brand + theme always show. */
+      @media (max-width: 900px) {
+        .site-nav__links {
+          display: none;
+        }
+      }
       @media (max-width: 480px) {
         .site-nav__sub {
           display: none;
         }
       }
 
-      /* ========================================================================
-         Typography
-         ======================================================================== */
+      /* ====================== Typography ===================================== */
       .eyebrow {
         font-size: 12px;
         font-weight: 600;
@@ -268,14 +302,11 @@
         line-height: 1.05;
         margin: 0 0 16px 0;
       }
-      h1 {
-        font-size: clamp(48px, 8vw, 104px);
-      }
       h2 {
-        font-size: clamp(36px, 5.5vw, 64px);
+        font-size: clamp(32px, 4.6vw, 54px);
       }
       h3 {
-        font-size: clamp(22px, 2.2vw, 30px);
+        font-size: clamp(20px, 2.2vw, 26px);
         letter-spacing: -0.02em;
       }
       .serif {
@@ -283,19 +314,17 @@
         font-weight: 400;
         letter-spacing: -0.012em;
         font-style: italic;
-        /* Slightly looser optical setting via font-variation-settings so
-           Fraunces renders with its display optical-size + a hint of the
-           SOFT axis for warmth. Falls back gracefully on Instrument Serif. */
         font-variation-settings: "opsz" 96, "SOFT" 50;
       }
       .mono {
         font-family: "Geist Mono", ui-monospace, monospace;
       }
       p.lead {
-        font-size: clamp(18px, 1.5vw, 22px);
+        font-size: clamp(18px, 1.5vw, 21px);
         color: hsl(var(--muted));
         max-width: 60ch;
         line-height: 1.55;
+        margin: 0;
       }
       p.note {
         color: hsl(var(--muted));
@@ -314,31 +343,49 @@
         color: transparent;
       }
 
-      /* ========================================================================
-         Cards
-         ======================================================================== */
-      .card {
-        background: hsl(var(--card));
-        border: 1px solid hsl(var(--card-border));
-        border-radius: 16px;
-        padding: 28px;
-        transition: border-color 250ms ease, transform 250ms ease,
-          box-shadow 250ms ease;
+      /* ====================== Buttons / pills ================================ */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-family: inherit;
+        font-size: 15px;
+        font-weight: 600;
+        border-radius: 12px;
+        padding: 13px 22px;
+        cursor: pointer;
+        border: 1px solid transparent;
+        transition: transform 200ms ease, box-shadow 200ms ease,
+          border-color 200ms ease, background 200ms ease, color 200ms ease;
       }
-      .card--organic {
-        border-radius: 24px 6px 24px 6px;
+      .btn--primary {
+        color: #fff;
+        background: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+        box-shadow: 0 8px 24px hsl(262 83% 58% / 0.26);
       }
-      .card--organic-mirror {
-        border-radius: 6px 24px 6px 24px;
+      .btn--primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 30px hsl(262 83% 58% / 0.34);
       }
-      .card:hover {
+      .btn--ghost {
+        color: hsl(var(--fg));
+        background: hsl(var(--bg-elev) / 0.5);
+        border-color: hsl(var(--card-border));
+      }
+      .btn--ghost:hover {
         border-color: var(--accent);
         transform: translateY(-2px);
       }
-
-      /* ========================================================================
-         Buttons / pills
-         ======================================================================== */
+      .btn--sm {
+        padding: 9px 15px;
+        font-size: 13.5px;
+        border-radius: 10px;
+      }
+      .btn svg {
+        width: 15px;
+        height: 15px;
+      }
       .pill {
         display: inline-flex;
         align-items: center;
@@ -361,20 +408,25 @@
         border-color: color-mix(in srgb, var(--good) 40%, transparent);
         background: color-mix(in srgb, var(--good) 10%, transparent);
       }
-      .pill--warn {
-        color: var(--warn);
-        border-color: color-mix(in srgb, var(--warn) 40%, transparent);
-        background: color-mix(in srgb, var(--warn) 10%, transparent);
-      }
-      .pill--bad {
-        color: var(--bad);
-        border-color: color-mix(in srgb, var(--bad) 40%, transparent);
-        background: color-mix(in srgb, var(--bad) 10%, transparent);
+      .pill--dot::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
       }
 
-      /* ========================================================================
-         Scroll-triggered animations
-         ======================================================================== */
+      /* ====================== Cards ========================================== */
+      .card {
+        background: hsl(var(--card));
+        border: 1px solid hsl(var(--card-border));
+        border-radius: 16px;
+        padding: 28px;
+        transition: border-color 250ms ease, transform 250ms ease,
+          box-shadow 250ms ease;
+      }
+
+      /* ====================== Reveal animations ============================== */
       .reveal {
         opacity: 0;
         transform: translateY(24px);
@@ -391,29 +443,16 @@
         transition: opacity 700ms cubic-bezier(0.16, 1, 0.3, 1),
           transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
       }
-      .reveal-stagger.in-view > *:nth-child(1) {
-        transition-delay: 0ms;
-      }
-      .reveal-stagger.in-view > *:nth-child(2) {
-        transition-delay: 90ms;
-      }
-      .reveal-stagger.in-view > *:nth-child(3) {
-        transition-delay: 180ms;
-      }
-      .reveal-stagger.in-view > *:nth-child(4) {
-        transition-delay: 270ms;
-      }
-      .reveal-stagger.in-view > *:nth-child(5) {
-        transition-delay: 360ms;
-      }
-      .reveal-stagger.in-view > *:nth-child(6) {
-        transition-delay: 450ms;
-      }
+      .reveal-stagger.in-view > *:nth-child(1) { transition-delay: 0ms; }
+      .reveal-stagger.in-view > *:nth-child(2) { transition-delay: 80ms; }
+      .reveal-stagger.in-view > *:nth-child(3) { transition-delay: 160ms; }
+      .reveal-stagger.in-view > *:nth-child(4) { transition-delay: 240ms; }
+      .reveal-stagger.in-view > *:nth-child(5) { transition-delay: 320ms; }
+      .reveal-stagger.in-view > *:nth-child(6) { transition-delay: 400ms; }
       .reveal-stagger.in-view > * {
         opacity: 1;
         transform: translateY(0);
       }
-
       @media (prefers-reduced-motion: reduce) {
         .reveal,
         .reveal-stagger > * {
@@ -421,11 +460,12 @@
           transform: none !important;
           transition: none !important;
         }
+        html {
+          scroll-behavior: auto;
+        }
       }
 
-      /* ========================================================================
-         SECTION 1 — Hero
-         ======================================================================== */
+      /* ====================== Hero =========================================== */
       .hero {
         position: relative;
         overflow: hidden;
@@ -434,44 +474,57 @@
         position: relative;
         z-index: 2;
         text-align: center;
-        /* No padding-top — the old 60px was breathing room below the
-           floating nav bar, which has been removed. The hero now centres
-           cleanly inside the 100vh section. */
       }
       .hero__title {
-        /* Stacked two-line composition: gradient wordmark on top, italic
-           serif tagline beneath. Both centred — no more lopsided one-liner. */
-        font-size: clamp(72px, 13vw, 184px);
+        font-size: clamp(72px, 13vw, 176px);
         line-height: 0.92;
         font-weight: 800;
         letter-spacing: -0.045em;
-        margin-bottom: 28px;
+        margin-bottom: 24px;
       }
       .hero__title .gradient-text {
         display: block;
       }
       .hero__title .serif {
         display: block;
-        font-size: 0.46em;
+        font-size: 0.4em;
         line-height: 1.05;
         margin-top: 14px;
-        padding-left: 0;
         color: hsl(var(--fg));
         opacity: 0.92;
       }
       .hero__sub {
-        font-size: clamp(19px, 1.6vw, 24px);
+        font-size: clamp(17px, 1.5vw, 21px);
         color: hsl(var(--muted));
-        max-width: 46ch;
+        max-width: 62ch;
         margin: 0 auto;
-        line-height: 1.45;
+        line-height: 1.5;
       }
       .hero__sub strong {
         font-weight: 600;
         color: hsl(var(--fg));
       }
-      .hero__chip {
-        margin-bottom: 28px;
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-family: "Geist Mono", monospace;
+        font-size: 11.5px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--accent-strong);
+        border: 1px solid var(--accent);
+        background: var(--accent-soft);
+        border-radius: 999px;
+        padding: 7px 14px;
+        margin-bottom: 30px;
+      }
+      .hero__cta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        justify-content: center;
+        margin-top: 36px;
       }
 
       /* Gradient mesh background */
@@ -516,16 +569,9 @@
         animation-delay: -14s;
       }
       @keyframes meshDrift {
-        0%,
-        100% {
-          transform: translate(0, 0) scale(1);
-        }
-        33% {
-          transform: translate(40px, -30px) scale(1.08);
-        }
-        66% {
-          transform: translate(-30px, 40px) scale(0.96);
-        }
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        33% { transform: translate(40px, -30px) scale(1.08); }
+        66% { transform: translate(-30px, 40px) scale(0.96); }
       }
 
       /* Floating feather particles */
@@ -548,26 +594,16 @@
         filter: drop-shadow(0 0 8px var(--brand-2));
       }
       @keyframes float {
-        0% {
-          transform: translateY(110vh) rotate(0deg);
-          opacity: 0;
-        }
-        10% {
-          opacity: 0.6;
-        }
-        90% {
-          opacity: 0.5;
-        }
-        100% {
-          transform: translateY(-20vh) rotate(360deg);
-          opacity: 0;
-        }
+        0% { transform: translateY(110vh) rotate(0deg); opacity: 0; }
+        10% { opacity: 0.6; }
+        90% { opacity: 0.5; }
+        100% { transform: translateY(-20vh) rotate(360deg); opacity: 0; }
       }
 
       /* Scroll cue */
       .scroll-cue {
         position: absolute;
-        bottom: 36px;
+        bottom: 30px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 2;
@@ -584,869 +620,558 @@
       .scroll-cue__dot {
         width: 2px;
         height: 28px;
-        background: linear-gradient(
-          to bottom,
-          transparent,
-          hsl(var(--muted)),
-          transparent
-        );
+        background: linear-gradient(to bottom, transparent, hsl(var(--muted)), transparent);
         animation: scrollPulse 2.2s ease-in-out infinite;
       }
       @keyframes scrollPulse {
-        0%,
-        100% {
-          opacity: 0.3;
-          transform: translateY(0);
-        }
-        50% {
-          opacity: 1;
-          transform: translateY(6px);
-        }
+        0%, 100% { opacity: 0.3; transform: scaleY(0.7); }
+        50% { opacity: 1; transform: scaleY(1); }
       }
 
-      /* ========================================================================
-         SECTION 2 — Problem (empty vs populated)
-         ======================================================================== */
-      .problem__statement {
-        font-size: clamp(40px, 6vw, 80px);
-        font-weight: 700;
-        letter-spacing: -0.03em;
-        line-height: 1.05;
-        max-width: 18ch;
-        /* Tightened headline → subtitle gap. The 64px previous value felt
-           disconnected; 20px reads as a single statement-then-explanation. */
-        margin: 0 0 20px 0;
+      /* ====================== "What Flock is" ================================ */
+      .what {
+        position: relative;
+        overflow: hidden;
       }
-      .problem__statement strong {
-        background: linear-gradient(135deg, var(--brand-1), var(--brand-2));
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        font-weight: 800;
-      }
-      .compare {
+      .what__grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 28px;
+        grid-template-columns: 1.1fr 1fr;
+        gap: clamp(32px, 5vw, 72px);
+        align-items: start;
       }
-      @media (max-width: 880px) {
-        .compare {
+      @media (max-width: 820px) {
+        .what__grid {
           grid-template-columns: 1fr;
         }
       }
-      .mock {
+      .what__lead {
+        font-size: clamp(24px, 3.2vw, 40px);
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        line-height: 1.12;
+      }
+      .what__list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 14px;
+      }
+      .what__list li {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        font-size: 16px;
+        color: hsl(var(--fg));
+        line-height: 1.45;
+      }
+      .what__list li::before {
+        content: "";
+        flex: none;
+        width: 20px;
+        height: 20px;
+        margin-top: 2px;
+        border-radius: 6px;
+        background: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+        -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 13px no-repeat;
+        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 13px no-repeat;
+      }
+
+      /* ====================== Tool grid ====================================== */
+      .tools {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: clamp(20px, 2.5vw, 28px);
+      }
+      @media (max-width: 760px) {
+        .tools {
+          grid-template-columns: 1fr;
+        }
+      }
+      .tool-card {
         position: relative;
-        border-radius: 18px;
-        border: 1px solid hsl(var(--card-border));
         background: hsl(var(--card));
-        padding: 24px;
-        min-height: 320px;
+        border: 1px solid hsl(var(--card-border));
+        border-radius: 20px;
         overflow: hidden;
+        transition: border-color 250ms ease, transform 250ms ease,
+          box-shadow 250ms ease;
       }
-      .mock--empty {
-        opacity: 0.55;
-        filter: saturate(0.4);
+      .tool-card:hover {
+        transform: translateY(-3px);
+        border-color: color-mix(in srgb, var(--tool) 55%, transparent);
+        box-shadow: 0 18px 40px color-mix(in srgb, var(--tool) 18%, transparent);
       }
-      .mock__header {
+      .tool-card__accent {
+        height: 4px;
+        background: linear-gradient(
+          90deg,
+          var(--tool),
+          color-mix(in srgb, var(--tool) 40%, transparent)
+        );
+      }
+      .tool-card__body {
+        padding: clamp(22px, 2.4vw, 30px);
+      }
+      .tool-card__head {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        font-size: 13px;
-        color: hsl(var(--muted));
+        gap: 16px;
         margin-bottom: 18px;
       }
-      .mock__title {
-        font-weight: 600;
-        color: hsl(var(--fg));
-      }
-      .mock__stats {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-        margin-bottom: 22px;
-      }
-      .mock__stat {
-        background: hsl(var(--bg) / 0.6);
-        border: 1px solid hsl(var(--border));
-        border-radius: 10px;
-        padding: 12px;
-      }
-      .mock__stat .v {
-        font-size: 22px;
-        font-weight: 700;
-        font-family: "Geist Mono", monospace;
-        margin-top: 2px;
-      }
-      .mock__stat .k {
-        font-size: 10px;
-        color: hsl(var(--muted));
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-      }
-      .mock__bars {
-        display: flex;
-        align-items: flex-end;
-        gap: 6px;
-        height: 120px;
-      }
-      .mock__bars .bar {
-        flex: 1;
-        border-radius: 4px 4px 0 0;
-        background: linear-gradient(
-          to top,
-          var(--brand-3),
-          var(--brand-1)
-        );
-        animation: barGrow 1.2s cubic-bezier(0.16, 1, 0.3, 1) backwards;
-      }
-      .mock--empty .mock__bars .bar {
-        background: hsl(var(--border));
-      }
-      .mock--empty .mock__stat .v {
-        color: hsl(var(--muted));
-      }
-      .mock__empty-overlay {
-        position: absolute;
-        inset: 0;
+      .tool-card__icon {
+        flex: none;
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
         display: grid;
         place-items: center;
+        color: #fff;
         background: linear-gradient(
-          180deg,
-          transparent,
-          hsl(var(--card) / 0.7)
+          135deg,
+          var(--tool),
+          color-mix(in srgb, var(--tool) 55%, #1a1030)
         );
+        box-shadow: 0 6px 16px color-mix(in srgb, var(--tool) 35%, transparent);
+      }
+      .tool-card__icon svg {
+        width: 26px;
+        height: 26px;
+      }
+      .tool-card__name {
+        margin: 0;
+        font-size: 22px;
+        letter-spacing: -0.02em;
+      }
+      .tool-card__role {
+        display: block;
+        font-family: "Geist Mono", monospace;
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: color-mix(in srgb, var(--tool) 70%, hsl(var(--muted)));
+        margin-top: 4px;
+      }
+      .tool-card__line {
+        font-size: 16.5px;
+        font-weight: 500;
+        color: hsl(var(--fg));
+        line-height: 1.4;
+        margin: 0 0 18px;
+      }
+      .tool-card__meta {
+        margin: 0 0 22px;
+        display: grid;
+        gap: 12px;
+      }
+      .tool-card__meta > div {
+        display: grid;
+        grid-template-columns: 104px 1fr;
+        gap: 12px;
+        align-items: baseline;
+      }
+      .tool-card__meta dt {
+        font-family: "Geist Mono", monospace;
+        font-size: 10.5px;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: hsl(var(--muted));
+      }
+      .tool-card__meta dd {
+        margin: 0;
         font-size: 14px;
+        color: hsl(var(--fg));
+        line-height: 1.45;
+      }
+      .tool-card__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .tool-card__actions .btn--primary {
+        color: #fff;
+        background: linear-gradient(
+          135deg,
+          var(--tool),
+          color-mix(in srgb, var(--tool) 62%, #221338)
+        );
+        box-shadow: 0 8px 20px color-mix(in srgb, var(--tool) 32%, transparent);
+      }
+      .toggle-chevron {
+        transition: transform 250ms ease;
+      }
+      .js-toggle[aria-expanded="true"] .toggle-chevron {
+        transform: rotate(180deg);
+      }
+
+      /* Disclosure panel — smooth height via grid-template-rows 0fr→1fr. */
+      .tool-detail {
+        display: grid;
+        grid-template-rows: 0fr;
+        transition: grid-template-rows 380ms cubic-bezier(0.16, 1, 0.3, 1);
+        background: color-mix(in srgb, var(--tool) 5%, hsl(var(--card)));
+        border-top: 1px solid transparent;
+      }
+      .tool-detail.is-open {
+        grid-template-rows: 1fr;
+        border-top-color: hsl(var(--card-border));
+      }
+      .tool-detail__inner {
+        overflow: hidden;
+      }
+      .tool-detail__pad {
+        padding: clamp(22px, 2.4vw, 30px);
+        display: grid;
+        gap: 16px;
+      }
+      .detail-row {
+        display: grid;
+        grid-template-columns: 130px 1fr;
+        gap: 14px;
+        align-items: baseline;
+      }
+      @media (max-width: 520px) {
+        .detail-row {
+          grid-template-columns: 1fr;
+          gap: 3px;
+        }
+        .tool-card__meta > div {
+          grid-template-columns: 1fr;
+          gap: 2px;
+        }
+      }
+      .detail-row dt {
+        font-family: "Geist Mono", monospace;
+        font-size: 10.5px;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: color-mix(in srgb, var(--tool) 70%, hsl(var(--muted)));
+      }
+      .detail-row dd {
+        margin: 0;
+        font-size: 14.5px;
+        color: hsl(var(--fg));
+        line-height: 1.5;
+      }
+      .detail-row dd.example {
         color: hsl(var(--muted));
         font-style: italic;
       }
-      @keyframes barGrow {
-        from {
-          height: 0;
+
+      /* ====================== Workflow ======================================= */
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 18px;
+        counter-reset: flow;
+      }
+      @media (max-width: 900px) {
+        .flow {
+          grid-template-columns: repeat(2, 1fr);
         }
       }
-
-      /* ========================================================================
-         SECTION 3 — Trio
-         ======================================================================== */
-      .trio {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 24px;
-        position: relative;
-      }
-      @media (max-width: 920px) {
-        .trio {
+      @media (max-width: 520px) {
+        .flow {
           grid-template-columns: 1fr;
         }
       }
-      .trio__line {
-        position: absolute;
-        top: 50%;
-        left: 8%;
-        right: 8%;
-        height: 2px;
-        background-image: linear-gradient(
-          90deg,
-          var(--accent) 50%,
-          transparent 50%
-        );
-        background-size: 16px 2px;
-        z-index: 0;
-        opacity: 0.4;
+      .flow__step {
+        position: relative;
+        background: hsl(var(--card));
+        border: 1px solid hsl(var(--card-border));
+        border-radius: 16px;
+        padding: 26px 24px;
       }
-      @media (max-width: 920px) {
-        .trio__line {
+      .flow__num {
+        font-family: "Geist Mono", monospace;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--accent-strong);
+        letter-spacing: 0.1em;
+      }
+      .flow__tool {
+        margin: 12px 0 8px;
+        font-size: 19px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .flow__tool b {
+        color: var(--tool, var(--accent-strong));
+      }
+      .flow__desc {
+        font-size: 14px;
+        color: hsl(var(--muted));
+        line-height: 1.5;
+        margin: 0;
+      }
+      /* Arrow connector between steps (desktop only). */
+      .flow__step::after {
+        content: "→";
+        position: absolute;
+        right: -14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: hsl(var(--muted));
+        font-size: 18px;
+        opacity: 0.6;
+        z-index: 2;
+      }
+      .flow__step:last-child::after {
+        display: none;
+      }
+      @media (max-width: 900px) {
+        .flow__step:nth-child(2n)::after {
           display: none;
         }
       }
-      .trio__card {
-        position: relative;
-        z-index: 1;
-        display: block;
-        background: hsl(var(--card));
-        border: 1px solid hsl(var(--card-border));
-        border-radius: 18px;
-        padding: 32px 26px;
-        color: inherit;
-        text-decoration: none;
-        transition: border-color 250ms ease, transform 250ms ease;
-      }
-      a.trio__card::after {
-        content: "↗";
-        position: absolute;
-        bottom: 20px;
-        right: 22px;
-        font-size: 14px;
-        color: hsl(var(--muted));
-        transition: color 200ms ease, transform 200ms ease;
-      }
-      a.trio__card:hover::after {
-        color: var(--accent-strong);
-        transform: translate(2px, -2px);
-      }
-      .trio__card:hover {
-        border-color: var(--accent);
-        transform: translateY(-3px);
-      }
-      .trio__num {
-        position: absolute;
-        top: 18px;
-        right: 22px;
-        font-family: "Geist Mono", monospace;
-        font-size: 11px;
-        letter-spacing: 0.15em;
-        color: hsl(var(--muted));
-      }
-      .trio__icon {
-        width: 56px;
-        height: 56px;
-        border-radius: 14px;
-        display: grid;
-        place-items: center;
-        background: var(--accent-soft);
-        border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-        margin-bottom: 22px;
-        color: var(--accent-strong);
-      }
-      .trio__icon img,
-      .trio__icon svg {
-        /* max-* + object-contain so logos of any aspect ratio (square
-           Plumage, wider Weave, vertical SS) all sit inside the 56px
-           tile without distortion. Was forcing 30×30 which squished
-           non-square SVGs. */
-        max-width: 34px;
-        max-height: 34px;
-        width: auto;
-        height: auto;
-        object-fit: contain;
-      }
-      .trio__card h3 {
-        margin-bottom: 10px;
-      }
-      .trio__card p {
-        color: hsl(var(--muted));
-        font-size: 15px;
-        margin: 0;
-      }
-      .trio__card--sg .trio__icon {
-        background: color-mix(in srgb, var(--brand-1) 15%, transparent);
-        border-color: color-mix(in srgb, var(--brand-1) 50%, transparent);
-      }
-      .trio__card--plumage .trio__icon {
-        background: linear-gradient(
-          135deg,
-          color-mix(in srgb, var(--brand-1) 25%, transparent),
-          color-mix(in srgb, var(--brand-3) 25%, transparent)
-        );
-        border-color: var(--brand-2);
-      }
-      .trio__card--ss .trio__icon {
-        background: color-mix(in srgb, var(--ss-teal) 18%, transparent);
-        border-color: color-mix(in srgb, var(--ss-teal) 60%, transparent);
+      @media (max-width: 520px) {
+        .flow__step::after {
+          content: "↓";
+          right: 50%;
+          top: auto;
+          bottom: -14px;
+          transform: translateX(50%);
+        }
       }
 
-      /* ========================================================================
-         SECTION 4 — What Plumage does
-         ======================================================================== */
-      .does-grid {
+      /* ====================== Teams ========================================== */
+      .teams {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 20px;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
       }
-      @media (max-width: 760px) {
-        .does-grid {
+      @media (max-width: 860px) {
+        .teams {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 520px) {
+        .teams {
           grid-template-columns: 1fr;
         }
       }
-      .does-row {
-        display: flex;
-        align-items: flex-start;
-        gap: 20px;
+      .team-card {
         background: hsl(var(--card));
         border: 1px solid hsl(var(--card-border));
         border-radius: 16px;
         padding: 24px;
-        transition: border-color 250ms ease;
+        transition: border-color 220ms ease, transform 220ms ease;
       }
-      .does-row:hover {
-        border-color: var(--accent);
-      }
-      .does-row__icon {
-        flex-shrink: 0;
-        width: 44px;
-        height: 44px;
-        border-radius: 11px;
-        display: grid;
-        place-items: center;
-        background: var(--accent-soft);
-        color: var(--accent-strong);
-      }
-      .does-row__icon svg {
-        width: 22px;
-        height: 22px;
-      }
-      .does-row h4 {
-        font-size: 16px;
-        font-weight: 600;
-        margin: 0 0 4px 0;
-        letter-spacing: -0.01em;
-      }
-      .does-row p {
-        margin: 0;
-        font-size: 14px;
-        color: hsl(var(--muted));
-        line-height: 1.55;
-      }
-
-      /* ========================================================================
-         SECTION 5 — Audiences (SE / Implementation / CSM)
-         ======================================================================== */
-      .audiences {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 22px;
-      }
-      @media (max-width: 1000px) {
-        .audiences {
-          grid-template-columns: 1fr;
-        }
-      }
-      .audience {
-        padding: 32px;
-        border-radius: 20px;
-        background: hsl(var(--card));
-        border: 1px solid hsl(var(--card-border));
-        position: relative;
-        overflow: hidden;
-        transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
-          border-color 250ms ease;
-      }
-      .audience::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(
-          135deg,
-          var(--audience-accent, var(--brand-2)) 0%,
-          transparent 50%
-        );
-        opacity: 0.06;
-        pointer-events: none;
-      }
-      .audience:hover {
-        transform: translateY(-4px);
-        border-color: var(--audience-accent, var(--accent));
-      }
-      .audience__role {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        font-family: "Geist Mono", monospace;
-        font-size: 11px;
-        letter-spacing: 0.15em;
-        text-transform: uppercase;
-        padding: 6px 12px;
-        border-radius: 999px;
-        background: color-mix(
-          in srgb,
-          var(--audience-accent, var(--accent)) 12%,
-          transparent
-        );
-        color: var(--audience-accent, var(--accent-strong));
-        border: 1px solid
-          color-mix(in srgb, var(--audience-accent, var(--accent)) 30%, transparent);
-        margin-bottom: 22px;
-      }
-      .audience h3 {
-        margin-bottom: 14px;
-      }
-      .audience p {
-        color: hsl(var(--muted));
-        font-size: 15px;
-        line-height: 1.6;
-        margin: 0;
-      }
-      .audience--se {
-        --audience-accent: var(--brand-2);
-      }
-      .audience--impl {
-        --audience-accent: var(--ss-teal);
-      }
-      .audience--csm {
-        --audience-accent: #f59e0b;
-      }
-
-      /* ========================================================================
-         SECTION 6 — LLM matrix
-         ======================================================================== */
-      .llm-cols {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 22px;
-      }
-      @media (max-width: 1000px) {
-        .llm-cols {
-          grid-template-columns: 1fr;
-        }
-      }
-      .llm-col {
-        background: hsl(var(--card));
-        border: 1px solid hsl(var(--card-border));
-        border-radius: 20px;
-        padding: 28px;
-        position: relative;
-        overflow: hidden;
-      }
-      .llm-col::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: var(--col-accent);
-      }
-      .llm-col--fast {
-        --col-accent: var(--good);
-      }
-      .llm-col--balanced {
-        --col-accent: var(--warn);
-      }
-      .llm-col--premium {
-        --col-accent: var(--brand-2);
-      }
-      .llm-col__head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 16px;
-      }
-      .llm-col__title {
-        font-size: 14px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--col-accent);
-      }
-      .llm-col__hint {
-        font-size: 13px;
-        color: hsl(var(--muted));
-        margin-bottom: 24px;
-        line-height: 1.5;
-      }
-      .llm-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 14px;
-        border-radius: 12px;
-        border: 1px solid hsl(var(--border));
-        margin-bottom: 8px;
-        background: hsl(var(--bg) / 0.4);
-        transition: border-color 200ms ease;
-      }
-      .llm-row:hover {
-        border-color: var(--col-accent);
-      }
-      .llm-row__icon {
-        width: 24px;
-        height: 24px;
-        background-color: hsl(var(--fg));
-        flex-shrink: 0;
-      }
-      .llm-row__name {
-        font-size: 13px;
-        font-weight: 500;
-        flex: 1;
-      }
-      .llm-row__name small {
-        display: block;
-        color: hsl(var(--muted));
-        font-weight: 400;
-        font-size: 11px;
-        margin-top: 2px;
-      }
-
-      .llm-takeaway {
-        margin-top: 40px;
-        padding: 24px 28px;
-        background: var(--accent-soft);
-        border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-        border-radius: 16px;
-        font-size: 15px;
-        line-height: 1.6;
-      }
-      .llm-takeaway strong {
-        color: var(--accent-strong);
-      }
-
-      /* ========================================================================
-         SECTION 7 — API tier reality
-         ======================================================================== */
-      .tier {
-        display: grid;
-        grid-template-columns: 1.1fr 1fr;
-        gap: 48px;
-        align-items: center;
-      }
-      @media (max-width: 980px) {
-        .tier {
-          grid-template-columns: 1fr;
-        }
-      }
-      .tier__ladder {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-      }
-      .tier__step {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        padding: 16px 20px;
-        border-radius: 12px;
-        background: hsl(var(--card));
-        border: 1px solid hsl(var(--card-border));
-        position: relative;
-      }
-      .tier__step[data-rank="0"] {
-        margin-left: 0;
-      }
-      .tier__step[data-rank="1"] {
-        margin-left: 24px;
-      }
-      .tier__step[data-rank="2"] {
-        margin-left: 48px;
-      }
-      .tier__step[data-rank="3"] {
-        margin-left: 72px;
-      }
-      .tier__step[data-rank="4"] {
-        margin-left: 96px;
-      }
-      .tier__step--bad {
-        border-color: color-mix(in srgb, var(--bad) 50%, transparent);
-      }
-      .tier__step--ok {
-        border-color: color-mix(in srgb, var(--warn) 50%, transparent);
-      }
-      .tier__step--good {
-        border-color: color-mix(in srgb, var(--good) 60%, transparent);
-        background: color-mix(in srgb, var(--good) 6%, hsl(var(--card)));
-      }
-      .tier__rank {
-        width: 28px;
-        height: 28px;
-        border-radius: 8px;
-        font-family: "Geist Mono", monospace;
-        font-size: 12px;
-        font-weight: 600;
-        display: grid;
-        place-items: center;
-        background: hsl(var(--bg));
-        border: 1px solid hsl(var(--border));
-        flex-shrink: 0;
-      }
-      .tier__name {
-        font-weight: 600;
-        font-size: 14px;
-      }
-      .tier__name small {
-        display: block;
-        font-size: 12px;
-        color: hsl(var(--muted));
-        font-weight: 400;
-        margin-top: 2px;
-      }
-      .tier__badge {
-        margin-left: auto;
-        font-family: "Geist Mono", monospace;
-        font-size: 11px;
-        color: hsl(var(--muted));
-      }
-
-      /* Retry mini-flow */
-      .retry-flow {
-        background: hsl(var(--card));
-        border: 1px solid hsl(var(--card-border));
-        border-radius: 18px;
-        padding: 28px;
-      }
-      .retry-flow h4 {
-        font-size: 14px;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        color: hsl(var(--muted));
-        margin: 0 0 20px 0;
-        font-weight: 600;
-      }
-      .retry-flow__line {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-      .retry-step {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 12px 14px;
-        border-radius: 10px;
-        border: 1px solid hsl(var(--border));
-        background: hsl(var(--bg) / 0.5);
-        opacity: 0;
-        transform: translateY(8px);
-      }
-      .in-view .retry-step {
-        animation: stepIn 600ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-      }
-      .in-view .retry-step:nth-child(1) { animation-delay: 0.3s; }
-      .in-view .retry-step:nth-child(2) { animation-delay: 1.1s; }
-      .in-view .retry-step:nth-child(3) { animation-delay: 2.0s; }
-      .in-view .retry-step:nth-child(4) { animation-delay: 2.9s; }
-      .in-view .retry-step:nth-child(5) { animation-delay: 3.7s; }
-      @keyframes stepIn {
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      .retry-step__glyph {
-        width: 22px;
-        height: 22px;
-        border-radius: 5px;
-        display: grid;
-        place-items: center;
-        font-size: 11px;
-        font-family: "Geist Mono", monospace;
-      }
-      .retry-step--req .retry-step__glyph {
-        background: var(--accent-soft);
-        color: var(--accent-strong);
-      }
-      .retry-step--429 .retry-step__glyph {
-        background: color-mix(in srgb, var(--bad) 15%, transparent);
-        color: var(--bad);
-      }
-      .retry-step--wait .retry-step__glyph {
-        background: color-mix(in srgb, var(--warn) 15%, transparent);
-        color: var(--warn);
-      }
-      .retry-step--ok .retry-step__glyph {
-        background: color-mix(in srgb, var(--good) 15%, transparent);
-        color: var(--good);
-      }
-      .retry-step__text {
-        font-size: 13px;
-        font-family: "Geist Mono", monospace;
-      }
-      .retry-step__time {
-        margin-left: auto;
-        font-size: 11px;
-        color: hsl(var(--muted));
-      }
-
-      /* ========================================================================
-         SECTION 8 — 5-step flow
-         ======================================================================== */
-      .steps {
-        position: relative;
-        display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 20px;
-      }
-      @media (max-width: 1100px) {
-        .steps {
-          grid-template-columns: repeat(2, 1fr);
-        }
-      }
-      @media (max-width: 600px) {
-        .steps {
-          grid-template-columns: 1fr;
-        }
-      }
-      .step {
-        background: hsl(var(--card));
-        border: 1px solid hsl(var(--card-border));
-        border-radius: 16px;
-        padding: 24px 20px;
-        transition: border-color 250ms ease, transform 250ms ease;
-      }
-      .step:hover {
-        border-color: var(--accent);
-        transform: translateY(-3px);
-      }
-      .step__num {
-        font-family: "Geist Mono", monospace;
-        font-size: 11px;
-        letter-spacing: 0.15em;
-        color: var(--accent-strong);
-        margin-bottom: 18px;
-      }
-      .step__icon {
-        width: 38px;
-        height: 38px;
-        border-radius: 9px;
-        background: var(--accent-soft);
-        color: var(--accent-strong);
-        display: grid;
-        place-items: center;
-        margin-bottom: 14px;
-      }
-      .step__icon svg {
-        width: 20px;
-        height: 20px;
-      }
-      .step h4 {
-        font-size: 15px;
-        font-weight: 600;
-        margin: 0 0 6px 0;
-        letter-spacing: -0.01em;
-      }
-      .step p {
-        font-size: 13px;
-        color: hsl(var(--muted));
-        margin: 0;
-        line-height: 1.5;
-      }
-
-      /* ========================================================================
-         SECTION 9 — Pro tips
-         ======================================================================== */
-      .tips {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
-      }
-      @media (max-width: 920px) {
-        .tips {
-          grid-template-columns: repeat(2, 1fr);
-        }
-      }
-      @media (max-width: 560px) {
-        .tips {
-          grid-template-columns: 1fr;
-        }
-      }
-      .tip {
-        background: hsl(var(--card));
-        border: 1px solid hsl(var(--card-border));
-        border-radius: 14px;
-        padding: 22px;
-        transition: border-color 250ms ease, transform 250ms ease;
-      }
-      .tip:hover {
+      .team-card:hover {
         border-color: var(--accent);
         transform: translateY(-2px);
       }
-      .tip__emoji {
-        font-size: 22px;
-        margin-bottom: 12px;
+      .team-card__role {
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: -0.015em;
+        margin: 0 0 6px;
       }
-      .tip p {
-        font-size: 14px;
-        line-height: 1.55;
+      .team-card p {
         margin: 0;
-        color: hsl(var(--fg));
+        font-size: 14.5px;
+        color: hsl(var(--muted));
+        line-height: 1.5;
       }
-      .tip p strong {
+      .team-card__tools {
+        margin-top: 14px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .tag {
+        font-family: "Geist Mono", monospace;
+        font-size: 10.5px;
+        font-weight: 500;
+        letter-spacing: 0.06em;
         color: var(--accent-strong);
-        font-weight: 600;
+        border: 1px solid var(--accent);
+        background: var(--accent-soft);
+        border-radius: 6px;
+        padding: 3px 8px;
       }
 
-      /* ========================================================================
-         Footer
-         ======================================================================== */
+      /* ====================== Principles ===================================== */
+      .principles {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+      @media (max-width: 820px) {
+        .principles {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 480px) {
+        .principles {
+          grid-template-columns: 1fr;
+        }
+      }
+      .principle {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+        padding: 20px 22px;
+        border: 1px solid hsl(var(--card-border));
+        border-radius: 14px;
+        background: hsl(var(--card));
+      }
+      .principle__mark {
+        flex: none;
+        width: 10px;
+        height: 10px;
+        margin-top: 7px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+      }
+      .principle strong {
+        display: block;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: -0.015em;
+      }
+      .principle span {
+        font-size: 13.5px;
+        color: hsl(var(--muted));
+        line-height: 1.45;
+      }
+
+      /* ====================== Status row ===================================== */
+      .status {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .status__item {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 16px;
+        border: 1px solid hsl(var(--card-border));
+        border-radius: 12px;
+        background: hsl(var(--card));
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .status__dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex: none;
+      }
+      .status__state {
+        font-family: "Geist Mono", monospace;
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        color: hsl(var(--muted));
+        text-transform: uppercase;
+      }
+
+      /* ====================== FAQ ============================================ */
+      .faq {
+        display: grid;
+        gap: 12px;
+        max-width: 820px;
+      }
+      .faq__item {
+        border: 1px solid hsl(var(--card-border));
+        border-radius: 14px;
+        background: hsl(var(--card));
+        overflow: hidden;
+      }
+      .faq__q {
+        appearance: none;
+        width: 100%;
+        text-align: left;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 16px;
+        font-weight: 600;
+        color: hsl(var(--fg));
+        padding: 20px 22px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        letter-spacing: -0.01em;
+      }
+      .faq__q:hover {
+        color: var(--accent-strong);
+      }
+      .faq__panel {
+        display: grid;
+        grid-template-rows: 0fr;
+        transition: grid-template-rows 320ms cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .faq__panel.is-open {
+        grid-template-rows: 1fr;
+      }
+      .faq__panel > div {
+        overflow: hidden;
+      }
+      .faq__panel p {
+        margin: 0;
+        padding: 0 22px 20px;
+        font-size: 15px;
+        color: hsl(var(--muted));
+        line-height: 1.55;
+      }
+
+      /* ====================== Footer ========================================= */
       .footer {
-        padding-block: 64px;
         border-top: 1px solid hsl(var(--card-border));
+        padding-block: 48px;
+        background: hsl(var(--bg-elev) / 0.4);
       }
       .footer__inner {
         display: flex;
         flex-wrap: wrap;
-        gap: 32px;
+        gap: 24px;
         align-items: center;
         justify-content: space-between;
       }
+      .footer__brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .footer__brand img {
+        width: 30px;
+        height: 30px;
+      }
+      .footer__tagline {
+        font-size: 14px;
+        color: hsl(var(--muted));
+      }
       .footer__links {
         display: flex;
-        gap: 28px;
-        font-size: 14px;
+        flex-wrap: wrap;
+        gap: 6px;
       }
       .footer__links a {
+        font-size: 13.5px;
         color: hsl(var(--muted));
-        transition: color 160ms ease;
+        padding: 6px 11px;
+        border-radius: 8px;
+        transition: color 180ms ease, background 180ms ease;
       }
       .footer__links a:hover {
-        color: var(--accent-strong);
-      }
-      .footer__mark {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 13px;
-        color: hsl(var(--muted));
-      }
-      .footer__mark img {
-        height: 28px;
-        width: 28px;
-        border-radius: 7px;
-        opacity: 0.7;
-      }
-
-      /* ========================================================================
-         Section dividers / eyebrows
-         ======================================================================== */
-      .section__intro {
-        max-width: 720px;
-        margin-bottom: 56px;
-      }
-      .section__intro p.lead {
-        margin: 0;
-      }
-
-      /* Hero badge */
-      .hero-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        padding: 8px 14px;
-        border-radius: 999px;
-        background: hsl(var(--bg-elev) / 0.6);
-        border: 1px solid hsl(var(--card-border));
-        font-size: 12px;
-        font-weight: 500;
-        color: hsl(var(--muted));
-        backdrop-filter: blur(12px);
-      }
-      .hero-badge::before {
-        content: "";
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--good);
-        box-shadow: 0 0 12px var(--good);
-        animation: pulse 2.4s ease-in-out infinite;
-      }
-      @keyframes pulse {
-        0%,
-        100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.5;
-        }
+        color: hsl(var(--fg));
+        background: hsl(var(--bg-elev) / 0.7);
       }
     </style>
   </head>
   <body>
-    <!-- ──────────────────────────────────────────────────────────────────────
-         Full-width sticky nav. Brand mark + name + subtitle on the left,
-         Theme toggle pill on the right. Glass background with a subtle
-         bottom border so the page beneath remains visible through it.
-         ────────────────────────────────────────────────────────────────────── -->
+    <!-- ── Sticky nav ──────────────────────────────────────────────────────── -->
     <header class="site-nav">
       <div class="site-nav__inner">
-        <a class="site-nav__brand" href="#hero">
+        <a class="site-nav__brand" href="#hero" aria-label="Flock home">
           <span class="site-nav__icon">
             <img src="https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/flock-logo.svg" alt="" />
           </span>
@@ -1455,28 +1180,35 @@
             <span class="site-nav__sub">GTM Toolkit</span>
           </span>
         </a>
-        <button
-          class="site-nav__theme"
-          type="button"
-          onclick="toggleTheme()"
-          aria-label="Toggle theme"
-          title="Toggle theme"
-        >
-          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-          </svg>
-          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="4" />
-            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-          </svg>
-          <span>Theme</span>
-        </button>
+        <nav class="site-nav__links" aria-label="Sections">
+          <a href="#tools">Tools</a>
+          <a href="#workflow">Workflow</a>
+          <a href="#teams">Teams</a>
+          <a href="#principles">Principles</a>
+          <a href="#faq">FAQ</a>
+        </nav>
+        <div class="site-nav__right">
+          <button
+            class="site-nav__theme"
+            type="button"
+            onclick="toggleTheme()"
+            aria-label="Toggle light and dark theme"
+            title="Toggle theme"
+          >
+            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+            </svg>
+            <span>Theme</span>
+          </button>
+        </div>
       </div>
     </header>
 
-    <!-- ──────────────────────────────────────────────────────────────────────
-         SECTION 1 — Hero
-         ────────────────────────────────────────────────────────────────────── -->
+    <!-- ── Hero ────────────────────────────────────────────────────────────── -->
     <section id="hero" class="section section--hero hero">
       <div class="mesh" aria-hidden="true">
         <div class="mesh__blob mesh__blob--a"></div>
@@ -1489,15 +1221,20 @@
         <div class="hero-badge reveal">Internal · SurveySparrow GTM</div>
         <h1 class="hero__title reveal">
           <span class="gradient-text">Flock</span>
-          <span class="serif">tools for the team.</span>
+          <span class="serif">GTM tools for sharper work.</span>
         </h1>
         <p class="hero__sub reveal">
-          Built for the SurveySparrow GTM team. <strong>Weave</strong>
-          drafts the survey, <strong>Plumage</strong> fills it with
-          persona-driven AI responses — so the hours that used to
-          disappear into demo prep go back to solving real customer
-          problems.
+          Flock is the internal SurveySparrow GTM toolkit — a growing set of
+          focused apps that help teams <strong>build better demos</strong>,
+          <strong>generate realistic data</strong>,
+          <strong>explore accounts</strong>, and
+          <strong>create polished commercial documents</strong>, without the
+          repetitive manual work.
         </p>
+        <div class="hero__cta reveal">
+          <a class="btn btn--primary" href="#tools">Explore tools</a>
+          <a class="btn btn--ghost" href="#workflow">How Flock works</a>
+        </div>
       </div>
 
       <div class="scroll-cue" aria-hidden="true">
@@ -1506,558 +1243,439 @@
       </div>
     </section>
 
-    <!-- ──────────────────────────────────────────────────────────────────────
-         SECTION 2 — Problem (empty vs populated)
-         ────────────────────────────────────────────────────────────────────── -->
-    <section class="section">
+    <!-- ── What Flock is ───────────────────────────────────────────────────── -->
+    <section id="about" class="section what">
       <div class="container">
-        <div class="section__intro reveal">
-          <div class="eyebrow">The problem</div>
-          <h2 class="problem__statement">
-            <strong>Generic demos</strong> fall flat.
-          </h2>
-          <p class="lead">
-            A tailored, populated dashboard does half the selling — it helps
-            the prospect picture themselves in the product before you've
-            even finished the pitch.
-          </p>
-        </div>
-
-        <div class="compare reveal">
-          <!-- Empty / sad dashboard mock -->
-          <div class="mock mock--empty">
-            <div class="mock__header">
-              <span class="mock__title">Customer NPS · Q3</span>
-              <span>—</span>
-            </div>
-            <div class="mock__stats">
-              <div class="mock__stat"><div class="k">Responses</div><div class="v">0</div></div>
-              <div class="mock__stat"><div class="k">NPS</div><div class="v">—</div></div>
-              <div class="mock__stat"><div class="k">CSAT</div><div class="v">—</div></div>
-            </div>
-            <div class="mock__bars">
-              <div class="bar" style="height: 12%"></div>
-              <div class="bar" style="height: 8%"></div>
-              <div class="bar" style="height: 14%"></div>
-              <div class="bar" style="height: 6%"></div>
-              <div class="bar" style="height: 10%"></div>
-              <div class="bar" style="height: 4%"></div>
-              <div class="bar" style="height: 12%"></div>
-            </div>
-            <div class="mock__empty-overlay">No responses yet</div>
+        <div class="what__grid">
+          <div class="reveal">
+            <p class="eyebrow">One toolkit. Four focused tools.</p>
+            <p class="what__lead">
+              Flock is not one app. It is a shared
+              <span class="serif">GTM toolkit</span> — built around real jobs,
+              not generic productivity.
+            </p>
           </div>
-
-          <!-- Populated / alive dashboard mock -->
-          <div class="mock">
-            <div class="mock__header">
-              <span class="mock__title">Customer NPS · Q3</span>
-              <span class="pill pill--good">live</span>
-            </div>
-            <div class="mock__stats">
-              <div class="mock__stat"><div class="k">Responses</div><div class="v">247</div></div>
-              <div class="mock__stat"><div class="k">NPS</div><div class="v">+62</div></div>
-              <div class="mock__stat"><div class="k">CSAT</div><div class="v">4.6</div></div>
-            </div>
-            <div class="mock__bars">
-              <div class="bar" style="height: 35%; animation-delay: 0.1s"></div>
-              <div class="bar" style="height: 55%; animation-delay: 0.2s"></div>
-              <div class="bar" style="height: 78%; animation-delay: 0.3s"></div>
-              <div class="bar" style="height: 92%; animation-delay: 0.4s"></div>
-              <div class="bar" style="height: 86%; animation-delay: 0.5s"></div>
-              <div class="bar" style="height: 70%; animation-delay: 0.6s"></div>
-              <div class="bar" style="height: 48%; animation-delay: 0.7s"></div>
-            </div>
-          </div>
+          <ul class="what__list reveal">
+            <li>Cuts the repetitive GTM work teams redo on every deal.</li>
+            <li>Helps teams show sharper, more believable demos.</li>
+            <li>Turns rough inputs — notes, requirements, account data — into usable assets.</li>
+            <li>Keeps internal workflows faster and more consistent.</li>
+            <li>Built around practical GTM jobs, and designed to keep growing.</li>
+          </ul>
         </div>
       </div>
     </section>
 
-    <!-- ──────────────────────────────────────────────────────────────────────
-         SECTION 3 — Trio
-         ────────────────────────────────────────────────────────────────────── -->
-    <section class="section">
+    <!-- ── Tool grid ───────────────────────────────────────────────────────── -->
+    <section id="tools" class="section">
       <div class="container">
-        <div class="section__intro reveal">
-          <div class="eyebrow">The trio</div>
-          <h2>One story, three tools.</h2>
-          <p class="lead">
-            Plumage is the middle act. Weave builds the script, Plumage
-            fills the cast, SurveySparrow shows the show.
+        <div class="section-head section-head--center reveal">
+          <p class="eyebrow">The tools</p>
+          <h2>Four tools for four common GTM jobs.</h2>
+          <p class="lead" style="margin-inline:auto">
+            Pick the tool that matches the job. Open it in one click, or expand
+            any card to learn exactly when and how to use it.
           </p>
         </div>
 
-        <div class="trio reveal-stagger">
-          <div class="trio__line" aria-hidden="true"></div>
-
-          <a
-            class="trio__card trio__card--sg"
-            href="https://sites.google.com/surveysparrow.com/flock/survey-importer"
-            target="_blank"
-            rel="noreferrer"
-          >
-            <span class="trio__num">01</span>
-            <div class="trio__icon">
-              <img src="https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/weave-logo.svg" alt="" />
+        <div class="tools reveal-stagger">
+          <!-- Weave -->
+          <article class="tool-card" style="--tool:#c084fc">
+            <div class="tool-card__accent"></div>
+            <div class="tool-card__body">
+              <div class="tool-card__head">
+                <span class="tool-card__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                    <path d="M3 8c3 0 3 8 6 8s3-8 6-8 3 8 6 8" />
+                    <path d="M3 16c3 0 3-8 6-8s3 8 6 8 3-8 6-8" opacity="0.55" />
+                  </svg>
+                </span>
+                <div>
+                  <h3 class="tool-card__name">Weave</h3>
+                  <span class="tool-card__role">Survey Creator</span>
+                </div>
+              </div>
+              <p class="tool-card__line">
+                Turn rough requirements into SurveySparrow-ready surveys.
+              </p>
+              <dl class="tool-card__meta">
+                <div>
+                  <dt>Best for</dt>
+                  <dd>Demo surveys, workshop surveys, vertical-specific flows, structured imports.</dd>
+                </div>
+                <div>
+                  <dt>Primary users</dt>
+                  <dd>SEs, Presales, Implementation, CSMs.</dd>
+                </div>
+              </dl>
+              <div class="tool-card__actions">
+                <a class="btn btn--primary btn--sm" href="https://sites.google.com/surveysparrow.com/flock/survey-importer" target="_blank" rel="noopener">
+                  Open Weave
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+                </a>
+                <button class="btn btn--ghost btn--sm js-toggle" type="button" aria-expanded="false" aria-controls="d-weave">
+                  <span class="js-toggle-label">Learn more</span>
+                  <svg class="toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+              </div>
             </div>
-            <h3>Weave</h3>
-            <p>
-              Build a survey scoped to your prospect's vertical and use case.
-              Healthcare, retail, SaaS — the right questions, on demand.
-              Download it as a CSV and upload manually if you prefer; the
-              file comes out in SurveySparrow's import format.
-            </p>
-          </a>
-
-          <a
-            class="trio__card trio__card--plumage"
-            href="https://sites.google.com/surveysparrow.com/flock/response-generator"
-            target="_blank"
-            rel="noreferrer"
-          >
-            <span class="trio__num">02</span>
-            <div class="trio__icon">
-              <img src="https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/plumage-logo.svg" alt="" />
+            <div class="tool-detail" id="d-weave" role="region" aria-label="Weave details">
+              <div class="tool-detail__inner">
+                <div class="tool-detail__pad">
+                  <div class="detail-row"><dt>What it does</dt><dd>Creates SurveySparrow-ready survey drafts from structured prompts, pasted requirements, or formatted text.</dd></div>
+                  <div class="detail-row"><dt>When to use</dt><dd>When you need a demo survey quickly — especially for a prospect-specific use case or vertical.</dd></div>
+                  <div class="detail-row"><dt>Inputs</dt><dd>Survey objective, audience, question structure, variables, survey type, language, welcome/thank-you text.</dd></div>
+                  <div class="detail-row"><dt>Output</dt><dd>A structured SurveySparrow-ready survey draft or importer-friendly format.</dd></div>
+                  <div class="detail-row"><dt>Example</dt><dd class="example">Paste a customer requirement, format it with the helper, validate, then create the survey draft.</dd></div>
+                </div>
+              </div>
             </div>
-            <h3>Plumage</h3>
-            <p>
-              Generate hundreds of persona-driven responses with realistic
-              ratings, open-text, languages, and geography. Push them in.
-            </p>
-          </a>
-
-          <div class="trio__card trio__card--ss">
-            <span class="trio__num">03</span>
-            <div class="trio__icon">
-              <img src="https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/surveysparrow-symbol.svg" alt="" />
-            </div>
-            <h3>SurveySparrow</h3>
-            <p>
-              Dashboards, CogniVue, Journeys — visualise the story that
-              closes the deal. Walk in. Show. Win.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ──────────────────────────────────────────────────────────────────────
-         SECTION 4 — What Plumage does
-         ────────────────────────────────────────────────────────────────────── -->
-    <section class="section">
-      <div class="container">
-        <div class="section__intro reveal">
-          <div class="eyebrow">What it does</div>
-          <h2>Real responses, in minutes.</h2>
-          <p class="lead">
-            Four moves, end to end — pulled survey to populated dashboard.
-          </p>
-        </div>
-
-        <div class="does-grid reveal-stagger">
-          <div class="does-row">
-            <div class="does-row__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-            </div>
-            <div>
-              <h4>Pulls any SurveySparrow survey</h4>
-              <p>Questions, scales, choice IDs, custom variables — fetched directly via the SS API.</p>
-            </div>
-          </div>
-
-          <div class="does-row">
-            <div class="does-row__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            </div>
-            <div>
-              <h4>Synthesizes personas</h4>
-              <p>Country, language, sentiment archetype, persona variables — all controllable, all believable.</p>
-            </div>
-          </div>
-
-          <div class="does-row">
-            <div class="does-row__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-              </svg>
-            </div>
-            <div>
-              <h4>Generates responses per persona</h4>
-              <p>One LLM call per respondent — your choice of model — ratings and free-text in their actual voice.</p>
-            </div>
-          </div>
-
-          <div class="does-row">
-            <div class="does-row__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M22 2L11 13" />
-                <path d="M22 2l-7 20-4-9-9-4z" />
-              </svg>
-            </div>
-            <div>
-              <h4>Pushes back to SurveySparrow</h4>
-              <p>Confetti, a celebration chime, and your dashboard is live. CogniVue lights up. Demo's ready.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ──────────────────────────────────────────────────────────────────────
-         SECTION 5 — Audiences
-         ────────────────────────────────────────────────────────────────────── -->
-    <section class="section">
-      <div class="container">
-        <div class="section__intro reveal">
-          <div class="eyebrow">Who it accelerates</div>
-          <h2>Three teams. One shared advantage.</h2>
-        </div>
-
-        <div class="audiences reveal-stagger">
-          <article class="audience audience--se">
-            <span class="audience__role">Solutions Engineers</span>
-            <h3>Walk in prepared.</h3>
-            <p>
-              Healthcare prospect tomorrow? Healthcare-themed survey,
-              healthcare personas, healthcare-flavored open-text responses —
-              ready before the meeting starts.
-            </p>
           </article>
 
-          <article class="audience audience--impl">
-            <span class="audience__role">Implementation Team</span>
-            <h3>Show what "live" looks like.</h3>
-            <p>
-              Stand up a customer's environment with sample data so they
-              see what their dashboards will look like once real responses
-              arrive. No more "trust us."
-            </p>
+          <!-- Plumage -->
+          <article class="tool-card" style="--tool:#8b5cf6">
+            <div class="tool-card__accent"></div>
+            <div class="tool-card__body">
+              <div class="tool-card__head">
+                <span class="tool-card__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20 4c-7 4-11 11-11 18 0 .3 0 .6.05.9C10 20 13 15 18 10c-2.5 5-5.5 9.5-6.4 13.2 3.4-.8 6.6-3.4 8.2-7.2C21.6 12 21 6.5 20 4z" opacity="0.95"/>
+                    <path d="M9 22c-1.2-.7-2.2-1.8-3-3.2" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+                  </svg>
+                </span>
+                <div>
+                  <h3 class="tool-card__name">Plumage</h3>
+                  <span class="tool-card__role">Response Generator</span>
+                </div>
+              </div>
+              <p class="tool-card__line">
+                Generate realistic demo responses that make dashboards come alive.
+              </p>
+              <dl class="tool-card__meta">
+                <div>
+                  <dt>Best for</dt>
+                  <dd>NPS, CSAT, CX, EX, CogniVue, dashboard storytelling.</dd>
+                </div>
+                <div>
+                  <dt>Primary users</dt>
+                  <dd>SEs, Presales, Implementation, CSMs.</dd>
+                </div>
+              </dl>
+              <div class="tool-card__actions">
+                <a class="btn btn--primary btn--sm" href="https://sites.google.com/surveysparrow.com/flock/response-generator" target="_blank" rel="noopener">
+                  Open Plumage
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+                </a>
+                <button class="btn btn--ghost btn--sm js-toggle" type="button" aria-expanded="false" aria-controls="d-plumage">
+                  <span class="js-toggle-label">Learn more</span>
+                  <svg class="toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="tool-detail" id="d-plumage" role="region" aria-label="Plumage details">
+              <div class="tool-detail__inner">
+                <div class="tool-detail__pad">
+                  <div class="detail-row"><dt>What it does</dt><dd>Generates realistic response data for SurveySparrow surveys using personas, sentiment mix, geography, language, and response rules.</dd></div>
+                  <div class="detail-row"><dt>When to use</dt><dd>When a demo dashboard would look weak with empty data.</dd></div>
+                  <div class="detail-row"><dt>Inputs</dt><dd>Survey, persona profile, number of responses, sentiment mix, region/language, custom variables.</dd></div>
+                  <div class="detail-row"><dt>Output</dt><dd>Realistic responses that populate dashboards, CogniVue, NPS/CSAT views, and demo stories.</dd></div>
+                  <div class="detail-row"><dt>Example</dt><dd class="example">Create a healthcare NPS survey in Weave, then use Plumage to generate 300 realistic responses.</dd></div>
+                </div>
+              </div>
+            </div>
           </article>
 
-          <article class="audience audience--csm">
-            <span class="audience__role">Customer Success</span>
-            <h3>Show the next chapter.</h3>
-            <p>
-              Show renewing customers what they could be doing next.
-              Populate their NPS journey, support recovery, or EX use case
-              and walk through the expansion story visually.
-            </p>
+          <!-- Quill -->
+          <article class="tool-card" style="--tool:#3a9aa4">
+            <div class="tool-card__accent"></div>
+            <div class="tool-card__body">
+              <div class="tool-card__head">
+                <span class="tool-card__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 20c6-1 8-3 12-7 2.5-2.5 4-6 4-9-3 0-6.5 1.5-9 4-4 4-6 6-7 12z"/>
+                    <path d="M4 20l4-4"/>
+                    <path d="M14 6c1.2 1.2 2.8 2.8 4 4" opacity="0.6"/>
+                  </svg>
+                </span>
+                <div>
+                  <h3 class="tool-card__name">Quill</h3>
+                  <span class="tool-card__role">Order Form Generator</span>
+                </div>
+              </div>
+              <p class="tool-card__line">
+                Create polished service order forms with readiness checks and export options.
+              </p>
+              <dl class="tool-card__meta">
+                <div>
+                  <dt>Best for</dt>
+                  <dd>Draft PDFs, fillable PDFs, final PDFs, editable DOCX, commercial document QA.</dd>
+                </div>
+                <div>
+                  <dt>Primary users</dt>
+                  <dd>Sales, RevOps, Presales, Deal Desk.</dd>
+                </div>
+              </dl>
+              <div class="tool-card__actions">
+                <a class="btn btn--primary btn--sm" href="https://sites.google.com/surveysparrow.com/flock/order-form-generator" target="_blank" rel="noopener">
+                  Open Quill
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+                </a>
+                <button class="btn btn--ghost btn--sm js-toggle" type="button" aria-expanded="false" aria-controls="d-quill">
+                  <span class="js-toggle-label">Learn more</span>
+                  <svg class="toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="tool-detail" id="d-quill" role="region" aria-label="Quill details">
+              <div class="tool-detail__inner">
+                <div class="tool-detail__pad">
+                  <div class="detail-row"><dt>What it does</dt><dd>Generates polished SurveySparrow service order forms with readiness checks, commercial details, signatures, PO information, and export modes.</dd></div>
+                  <div class="detail-row"><dt>When to use</dt><dd>When a deal needs a clean order form or an internal review-ready commercial document.</dd></div>
+                  <div class="detail-row"><dt>Inputs</dt><dd>Customer details, service line items, currency, billing/shipping info, subscription details, PO requirement, signatures.</dd></div>
+                  <div class="detail-row"><dt>Output</dt><dd>Draft PDF, Fillable PDF, Final PDF, and Editable DOCX.</dd></div>
+                  <div class="detail-row"><dt>Example</dt><dd class="example">Enter customer and pricing details, review readiness warnings, export a customer-fillable order form.</dd></div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- Nest -->
+          <article class="tool-card" style="--tool:#7c5cf0">
+            <div class="tool-card__accent"></div>
+            <div class="tool-card__body">
+              <div class="tool-card__head">
+                <span class="tool-card__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 15c2-4 6-6 9-6s7 2 9 6c-2 1-4 1.5-6 1.5" />
+                    <circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/>
+                    <path d="M8.5 16.5c1 1.2 2.2 2 3.5 2s2.5-.8 3.5-2" opacity="0.6"/>
+                  </svg>
+                </span>
+                <div>
+                  <h3 class="tool-card__name">Nest</h3>
+                  <span class="tool-card__role">Account Explorer</span>
+                </div>
+              </div>
+              <p class="tool-card__line">
+                Explore active accounts and find the right customer story faster.
+              </p>
+              <dl class="tool-card__meta">
+                <div>
+                  <dt>Best for</dt>
+                  <dd>Account segmentation, GTM analysis, customer examples, CSM/account views.</dd>
+                </div>
+                <div>
+                  <dt>Primary users</dt>
+                  <dd>GTM leadership, RevOps, CSMs, SEs.</dd>
+                </div>
+              </dl>
+              <div class="tool-card__actions">
+                <a class="btn btn--primary btn--sm" href="https://sites.google.com/surveysparrow.com/flock/account-explorer" target="_blank" rel="noopener">
+                  Open Nest
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+                </a>
+                <button class="btn btn--ghost btn--sm js-toggle" type="button" aria-expanded="false" aria-controls="d-nest">
+                  <span class="js-toggle-label">Learn more</span>
+                  <svg class="toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="tool-detail" id="d-nest" role="region" aria-label="Nest details">
+              <div class="tool-detail__inner">
+                <div class="tool-detail__pad">
+                  <div class="detail-row"><dt>What it does</dt><dd>Lets teams explore active SurveySparrow accounts through filters, metrics, account attributes, and GTM segmentation.</dd></div>
+                  <div class="detail-row"><dt>When to use</dt><dd>When you need customer examples, account insights, region/product segmentation, or account-led stories.</dd></div>
+                  <div class="detail-row"><dt>Inputs</dt><dd>Account data with filters like industry, region, product, plan, CSM, ACV slab, billing, customer age, and status.</dd></div>
+                  <div class="detail-row"><dt>Output</dt><dd>Filtered account views, distribution charts, account summaries, and exportable account data.</dd></div>
+                  <div class="detail-row"><dt>Example</dt><dd class="example">Find active healthcare customers in North America on CX products at mid-market ACV to support a demo story.</dd></div>
+                </div>
+              </div>
+            </div>
           </article>
         </div>
       </div>
     </section>
 
-    <!-- ──────────────────────────────────────────────────────────────────────
-         SECTION 6 — LLM matrix
-         ────────────────────────────────────────────────────────────────────── -->
-    <section class="section">
+    <!-- ── Workflow ────────────────────────────────────────────────────────── -->
+    <section id="workflow" class="section">
       <div class="container">
-        <div class="section__intro reveal">
-          <div class="eyebrow">Choosing your LLM</div>
-          <h2>Speed and cost are a slider, not a switch.</h2>
-          <p class="lead">
-            Three columns. Pick by job — not by brand loyalty. Most of your
-            volume should run cheap; the answer that ends up on the
-            projector can afford to be premium.
+        <div class="section-head section-head--center reveal">
+          <p class="eyebrow">How Flock works together</p>
+          <h2>From account insight to customer-ready output.</h2>
+          <p class="lead" style="margin-inline:auto">
+            The tools stand alone — but they also chain into one clean GTM flow.
           </p>
         </div>
-
-        <div class="llm-cols reveal-stagger">
-          <div class="llm-col llm-col--fast">
-            <div class="llm-col__head">
-              <span class="llm-col__title">Fast &amp; cheap</span>
-              <span class="pill pill--good">recommended</span>
-            </div>
-            <p class="llm-col__hint">Bulk runs. 95% of your responses live here.</p>
-            <div class="llm-row">
-              <span class="llm-row__icon" style="mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/anthropic.svg) center/contain no-repeat; -webkit-mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/anthropic.svg) center/contain no-repeat;"></span>
-              <div class="llm-row__name">Claude Haiku<small>Anthropic</small></div>
-            </div>
-            <div class="llm-row">
-              <span class="llm-row__icon" style="mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/openai.svg) center/contain no-repeat; -webkit-mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/openai.svg) center/contain no-repeat;"></span>
-              <div class="llm-row__name">GPT-4o-mini / 4.1-mini<small>OpenAI</small></div>
-            </div>
-            <div class="llm-row">
-              <span class="llm-row__icon" style="mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/google.svg) center/contain no-repeat; -webkit-mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/google.svg) center/contain no-repeat;"></span>
-              <div class="llm-row__name">Gemini Flash<small>Google</small></div>
-            </div>
+        <div class="flow reveal-stagger">
+          <div class="flow__step" style="--tool:#7c5cf0">
+            <span class="flow__num">01</span>
+            <p class="flow__tool">Find the story with <b>Nest</b></p>
+            <p class="flow__desc">Explore accounts, segments, products, regions, and customer examples.</p>
           </div>
-
-          <div class="llm-col llm-col--balanced">
-            <div class="llm-col__head">
-              <span class="llm-col__title">Balanced</span>
-              <span class="pill pill--warn">nuanced</span>
-            </div>
-            <p class="llm-col__hint">When open-text needs to actually sound like the persona.</p>
-            <div class="llm-row">
-              <span class="llm-row__icon" style="mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/anthropic.svg) center/contain no-repeat; -webkit-mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/anthropic.svg) center/contain no-repeat;"></span>
-              <div class="llm-row__name">Claude Sonnet<small>Anthropic</small></div>
-            </div>
-            <div class="llm-row">
-              <span class="llm-row__icon" style="mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/openai.svg) center/contain no-repeat; -webkit-mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/openai.svg) center/contain no-repeat;"></span>
-              <div class="llm-row__name">GPT-4o<small>OpenAI</small></div>
-            </div>
-            <div class="llm-row">
-              <span class="llm-row__icon" style="mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/google.svg) center/contain no-repeat; -webkit-mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/google.svg) center/contain no-repeat;"></span>
-              <div class="llm-row__name">Gemini Pro<small>Google</small></div>
-            </div>
+          <div class="flow__step" style="--tool:#c084fc">
+            <span class="flow__num">02</span>
+            <p class="flow__tool">Build the survey with <b>Weave</b></p>
+            <p class="flow__desc">Turn the use case into a tailored SurveySparrow survey.</p>
           </div>
-
-          <div class="llm-col llm-col--premium">
-            <div class="llm-col__head">
-              <span class="llm-col__title">Premium</span>
-              <span class="pill pill--accent">hero answers</span>
-            </div>
-            <p class="llm-col__hint">For the one open-text answer that ends up on the projector.</p>
-            <div class="llm-row">
-              <span class="llm-row__icon" style="mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/anthropic.svg) center/contain no-repeat; -webkit-mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/anthropic.svg) center/contain no-repeat;"></span>
-              <div class="llm-row__name">Claude Opus<small>Anthropic</small></div>
-            </div>
-            <div class="llm-row">
-              <span class="llm-row__icon" style="mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/openai.svg) center/contain no-repeat; -webkit-mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/openai.svg) center/contain no-repeat;"></span>
-              <div class="llm-row__name">GPT-4.1 / GPT-4 Turbo<small>OpenAI</small></div>
-            </div>
-            <div class="llm-row">
-              <span class="llm-row__icon" style="mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/google.svg) center/contain no-repeat; -webkit-mask: url(https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/llms/google.svg) center/contain no-repeat;"></span>
-              <div class="llm-row__name">Gemini 1.5 Pro<small>Google</small></div>
-            </div>
+          <div class="flow__step" style="--tool:#8b5cf6">
+            <span class="flow__num">03</span>
+            <p class="flow__tool">Bring the demo alive with <b>Plumage</b></p>
+            <p class="flow__desc">Generate realistic responses and populate dashboards.</p>
           </div>
-        </div>
-
-        <div class="llm-takeaway reveal">
-          <strong>Rule of thumb:</strong> for 100+ responses, fast &amp; cheap
-          handles the work. Reserve premium for the single open-text answer
-          you'll actually point at on screen.
+          <div class="flow__step" style="--tool:#3a9aa4">
+            <span class="flow__num">04</span>
+            <p class="flow__tool">Package the deal with <b>Quill</b></p>
+            <p class="flow__desc">Create cleaner service order forms when the deal is ready.</p>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- ──────────────────────────────────────────────────────────────────────
-         SECTION 7 — API tier reality check
-         ────────────────────────────────────────────────────────────────────── -->
-    <section class="section">
+    <!-- ── Teams ───────────────────────────────────────────────────────────── -->
+    <section id="teams" class="section">
       <div class="container">
-        <div class="section__intro reveal">
-          <div class="eyebrow">Reality check</div>
-          <h2>API tiers will throttle you.</h2>
-          <p class="lead">
-            Every provider rate-limits by account tier. Free and Tier 1 will
-            hit a wall on big runs. Plumage handles it — but it's faster if
-            you know what's coming.
-          </p>
+        <div class="section-head reveal">
+          <p class="eyebrow">Who uses Flock</p>
+          <h2>Built for every seat on the GTM team.</h2>
         </div>
-
-        <div class="tier reveal">
-          <!-- Tier ladder -->
-          <div class="tier__ladder">
-            <div class="tier__step tier__step--bad" data-rank="0">
-              <span class="tier__rank">F</span>
-              <div class="tier__name">Free <small>No spend</small></div>
-              <span class="tier__badge">very low RPM</span>
-            </div>
-            <div class="tier__step tier__step--bad" data-rank="1">
-              <span class="tier__rank">1</span>
-              <div class="tier__name">Tier 1 <small>~$5 cumulative</small></div>
-              <span class="tier__badge">low RPM</span>
-            </div>
-            <div class="tier__step tier__step--ok" data-rank="2">
-              <span class="tier__rank">2</span>
-              <div class="tier__name">Tier 2 <small>~$50 + 7 days</small></div>
-              <span class="tier__badge">workable</span>
-            </div>
-            <div class="tier__step tier__step--good" data-rank="3">
-              <span class="tier__rank">3</span>
-              <div class="tier__name">Tier 3+ <small>$100+ history</small></div>
-              <span class="tier__badge">comfortable</span>
-            </div>
-            <div class="tier__step tier__step--good" data-rank="4">
-              <span class="tier__rank">★</span>
-              <div class="tier__name">Tier 4+ <small>$1000+ over time</small></div>
-              <span class="tier__badge">unbothered</span>
-            </div>
+        <div class="teams reveal-stagger">
+          <div class="team-card">
+            <h3 class="team-card__role">Solutions Engineers</h3>
+            <p>Build vertical-specific demos faster, end to end.</p>
+            <div class="team-card__tools"><span class="tag">Weave</span><span class="tag">Plumage</span><span class="tag">Nest</span></div>
           </div>
-
-          <!-- Retry mini-flow -->
-          <div class="retry-flow">
-            <h4>Plumage handles it for you</h4>
-            <div class="retry-flow__line">
-              <div class="retry-step retry-step--req">
-                <span class="retry-step__glyph">→</span>
-                <span class="retry-step__text">POST /messages</span>
-                <span class="retry-step__time">0.0s</span>
-              </div>
-              <div class="retry-step retry-step--429">
-                <span class="retry-step__glyph">×</span>
-                <span class="retry-step__text">429 rate_limited</span>
-                <span class="retry-step__time">0.6s</span>
-              </div>
-              <div class="retry-step retry-step--wait">
-                <span class="retry-step__glyph">…</span>
-                <span class="retry-step__text">backoff 2.4s</span>
-                <span class="retry-step__time">3.0s</span>
-              </div>
-              <div class="retry-step retry-step--req">
-                <span class="retry-step__glyph">→</span>
-                <span class="retry-step__text">POST /messages (retry)</span>
-                <span class="retry-step__time">3.1s</span>
-              </div>
-              <div class="retry-step retry-step--ok">
-                <span class="retry-step__glyph">✓</span>
-                <span class="retry-step__text">200 ok</span>
-                <span class="retry-step__time">4.2s</span>
-              </div>
-            </div>
-            <p class="note" style="margin-top: 20px">
-              Exponential backoff is built in. You can walk away mid-run —
-              it'll catch up.
-            </p>
+          <div class="team-card">
+            <h3 class="team-card__role">Sales / AEs</h3>
+            <p>Stronger commercial follow-through and cleaner order documents.</p>
+            <div class="team-card__tools"><span class="tag">Quill</span><span class="tag">Nest</span></div>
           </div>
-        </div>
-
-        <div style="margin-top: 56px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center" class="reveal">
-          <span class="pill pill--accent">Pro tip · use a higher-tier key for big runs</span>
-          <span class="pill pill--accent">Or spread across providers — model picker supports both</span>
-          <span class="pill pill--accent">Hit a snag? Ping Sujith — happy to help unblock you</span>
+          <div class="team-card">
+            <h3 class="team-card__role">RevOps</h3>
+            <p>Reduce manual formatting, standardize documents, keep GTM workflows consistent.</p>
+            <div class="team-card__tools"><span class="tag">Quill</span><span class="tag">Nest</span></div>
+          </div>
+          <div class="team-card">
+            <h3 class="team-card__role">Customer Success</h3>
+            <p>Explore customer stories, expansion examples, and lifecycle use cases.</p>
+            <div class="team-card__tools"><span class="tag">Nest</span><span class="tag">Weave</span><span class="tag">Plumage</span></div>
+          </div>
+          <div class="team-card">
+            <h3 class="team-card__role">Implementation</h3>
+            <p>Prepare structured surveys and realistic sample environments.</p>
+            <div class="team-card__tools"><span class="tag">Weave</span><span class="tag">Plumage</span></div>
+          </div>
+          <div class="team-card">
+            <h3 class="team-card__role">GTM Leadership</h3>
+            <p>Understand active-account distribution and GTM coverage.</p>
+            <div class="team-card__tools"><span class="tag">Nest</span></div>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- ──────────────────────────────────────────────────────────────────────
-         SECTION 8 — 5-step flow
-         ────────────────────────────────────────────────────────────────────── -->
-    <section class="section">
+    <!-- ── Principles ──────────────────────────────────────────────────────── -->
+    <section id="principles" class="section">
       <div class="container">
-        <div class="section__intro reveal">
-          <div class="eyebrow">How to use it</div>
-          <h2>Connect. Pick. Configure. Generate. Ship.</h2>
+        <div class="section-head reveal">
+          <p class="eyebrow">Principles</p>
+          <h2>Built for internal speed, not internal chaos.</h2>
         </div>
-
-        <div class="steps reveal-stagger">
-          <div class="step">
-            <div class="step__num">01</div>
-            <div class="step__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M10.59 13.41a6 6 0 1 1 4-4l9 9-3 3-9-9z" />
-                <path d="M7 7h.01" />
-              </svg>
-            </div>
-            <h4>Connect</h4>
-            <p>Paste your SurveySparrow + LLM API keys. Pick a survey.</p>
-          </div>
-          <div class="step">
-            <div class="step__num">02</div>
-            <div class="step__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-              </svg>
-            </div>
-            <h4>Pick model</h4>
-            <p>Speed vs cost trade-off, per the matrix above.</p>
-          </div>
-          <div class="step">
-            <div class="step__num">03</div>
-            <div class="step__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="9" cy="7" r="4" />
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <path d="M19 8v6M22 11h-6" />
-              </svg>
-            </div>
-            <h4>Configure</h4>
-            <p>Countries, languages, sentiment mix, themes, custom variables.</p>
-          </div>
-          <div class="step">
-            <div class="step__num">04</div>
-            <div class="step__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 20h9" />
-                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z" />
-              </svg>
-            </div>
-            <h4>Generate &amp; review</h4>
-            <p>Watch Persona Studio fill up. Sample-check the tone.</p>
-          </div>
-          <div class="step">
-            <div class="step__num">05</div>
-            <div class="step__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M22 2L11 13" />
-                <path d="M22 2l-7 20-4-9-9-4z" />
-              </svg>
-            </div>
-            <h4>Download and/or Push</h4>
-            <p>Export the CSV, push straight to SurveySparrow, or both. Confetti included. Open the dashboard. Demo.</p>
-          </div>
+        <div class="principles reveal-stagger">
+          <div class="principle"><span class="principle__mark"></span><span><strong>Small tools, sharp jobs</strong>Each app does one thing well.</span></div>
+          <div class="principle"><span class="principle__mark"></span><span><strong>Faster demos, fewer steps</strong>Less repetitive prep, more selling.</span></div>
+          <div class="principle"><span class="principle__mark"></span><span><strong>Realistic storytelling</strong>Believable data beats empty dashboards.</span></div>
+          <div class="principle"><span class="principle__mark"></span><span><strong>Safer commercial output</strong>Catch mistakes before anything ships.</span></div>
+          <div class="principle"><span class="principle__mark"></span><span><strong>Built around GTM workflows</strong>Shaped by real jobs, not generic tooling.</span></div>
+          <div class="principle"><span class="principle__mark"></span><span><strong>Expandable by design</strong>New tools join the flock over time.</span></div>
         </div>
       </div>
     </section>
 
-    <!-- ──────────────────────────────────────────────────────────────────────
-         SECTION 9 — Pro tips
-         ────────────────────────────────────────────────────────────────────── -->
-    <section class="section">
+    <!-- ── Status ──────────────────────────────────────────────────────────── -->
+    <section id="status" class="section" style="padding-block:clamp(40px,5vw,64px)">
       <div class="container">
-        <div class="section__intro reveal">
-          <div class="eyebrow">Pro tips</div>
-          <h2>Lessons from the field.</h2>
+        <div class="section-head reveal" style="margin-bottom:28px">
+          <p class="eyebrow">Toolkit status</p>
+          <h2 style="font-size:clamp(24px,3vw,34px)">A growing flock.</h2>
         </div>
+        <div class="status reveal-stagger">
+          <span class="status__item"><span class="status__dot" style="background:var(--good)"></span>Weave <span class="status__state">Active</span></span>
+          <span class="status__item"><span class="status__dot" style="background:var(--good)"></span>Plumage <span class="status__state">Active</span></span>
+          <span class="status__item"><span class="status__dot" style="background:var(--warn)"></span>Quill <span class="status__state">Active · evolving</span></span>
+          <span class="status__item"><span class="status__dot" style="background:var(--good)"></span>Nest <span class="status__state">Active</span></span>
+          <span class="status__item"><span class="status__dot" style="background:hsl(var(--muted))"></span>More tools <span class="status__state">Coming</span></span>
+        </div>
+      </div>
+    </section>
 
-        <div class="tips reveal-stagger">
-          <div class="tip">
-            <div class="tip__emoji">🧪</div>
-            <p><strong>Test small first.</strong> Generate 20–50 to sanity-check tone before you commit to 500.</p>
+    <!-- ── FAQ ─────────────────────────────────────────────────────────────── -->
+    <section id="faq" class="section">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="eyebrow">FAQ &amp; notes</p>
+          <h2>What to use, when, and what to review.</h2>
+        </div>
+        <div class="faq reveal">
+          <div class="faq__item">
+            <button class="faq__q js-faq" type="button" aria-expanded="false" aria-controls="faq-1">
+              Is Flock a customer-facing product?
+              <svg class="toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="faq__panel" id="faq-1"><div><p>No. Flock is currently an internal SurveySparrow GTM toolkit.</p></div></div>
           </div>
-          <div class="tip">
-            <div class="tip__emoji">🌍</div>
-            <p><strong>Match the geography.</strong> Use country filters that mirror your prospect's customer base.</p>
+          <div class="faq__item">
+            <button class="faq__q js-faq" type="button" aria-expanded="false" aria-controls="faq-2">
+              Which tool should I start with?
+              <svg class="toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="faq__panel" id="faq-2"><div><p>If you need a survey, start with Weave. If you need demo data, use Plumage. If you need account examples, use Nest. If you need an order form, use Quill.</p></div></div>
           </div>
-          <div class="tip">
-            <div class="tip__emoji">⚖️</div>
-            <p><strong>Mix sentiment realistically.</strong> 70 / 20 / 10 promoter / passive / detractor beats all-glowing every time.</p>
+          <div class="faq__item">
+            <button class="faq__q js-faq" type="button" aria-expanded="false" aria-controls="faq-3">
+              Does Flock replace SurveySparrow?
+              <svg class="toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="faq__panel" id="faq-3"><div><p>No. Flock helps GTM teams use SurveySparrow better and faster.</p></div></div>
           </div>
-          <div class="tip">
-            <div class="tip__emoji">✉️</div>
-            <p><strong>Tie variables to personas.</strong> <span class="mono">customer_fn</span>, <span class="mono">customer_email</span> make NPS comments feel personal.</p>
+          <div class="faq__item">
+            <button class="faq__q js-faq" type="button" aria-expanded="false" aria-controls="faq-4">
+              Are these tools production systems?
+              <svg class="toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="faq__panel" id="faq-4"><div><p>They are internal tools built for GTM workflows. Review outputs before sending anything externally.</p></div></div>
           </div>
-          <div class="tip">
-            <div class="tip__emoji">🧩</div>
-            <p><strong>Pair with Weave.</strong> End-to-end vertical demos in one afternoon.</p>
-          </div>
-          <div class="tip">
-            <div class="tip__emoji">🎧</div>
-            <p><strong>Press play and let it run.</strong> Big batches finish fastest when you stop watching.</p>
+          <div class="faq__item">
+            <button class="faq__q js-faq" type="button" aria-expanded="false" aria-controls="faq-5">
+              Will more tools be added?
+              <svg class="toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="faq__panel" id="faq-5"><div><p>Yes. Flock is designed as a growing toolkit.</p></div></div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ──────────────────────────────────────────────────────────────────────
-         FOOTER
-         ────────────────────────────────────────────────────────────────────── -->
+    <!-- ── Footer ──────────────────────────────────────────────────────────── -->
     <footer class="footer">
-      <div class="container">
-        <div class="footer__inner">
-          <div class="footer__mark">
-            <img src="https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/flock-logo.svg" alt="" />
-            <span>Built for the SurveySparrow GTM team.</span>
-          </div>
-          <nav class="footer__links">
-            <a href="https://sites.google.com/surveysparrow.com/flock/response-generator" target="_blank" rel="noreferrer">Plumage ↗</a>
-            <a href="https://sites.google.com/surveysparrow.com/flock/survey-importer" target="_blank" rel="noreferrer">Weave ↗</a>
-            <a href="https://developers.surveysparrow.com" target="_blank" rel="noreferrer">SurveySparrow Docs</a>
-          </nav>
+      <div class="container footer__inner">
+        <div class="footer__brand">
+          <img src="https://cdn.jsdelivr.net/gh/sb-kris/Plumage-Response-Generator@main/public/brand/flock-logo.svg" alt="" />
+          <span class="footer__tagline">Built for the SurveySparrow GTM team.</span>
         </div>
+        <nav class="footer__links" aria-label="Tools">
+          <a href="https://sites.google.com/surveysparrow.com/flock/survey-importer" target="_blank" rel="noopener">Weave</a>
+          <a href="https://sites.google.com/surveysparrow.com/flock/response-generator" target="_blank" rel="noopener">Plumage</a>
+          <a href="https://sites.google.com/surveysparrow.com/flock/order-form-generator" target="_blank" rel="noopener">Quill</a>
+          <a href="https://sites.google.com/surveysparrow.com/flock/account-explorer" target="_blank" rel="noopener">Nest</a>
+          <a href="https://surveysparrow.com" target="_blank" rel="noopener">SurveySparrow</a>
+        </nav>
       </div>
     </footer>
 
     <script>
       // ====================================================================
       // Theme toggle — flips data-theme on <html>, persists to localStorage.
+      // (Key preserved from the original deck so saved preferences carry over.)
       // ====================================================================
       const THEME_KEY = "plumage-deck-theme";
       (function initTheme() {
@@ -2083,7 +1701,6 @@
           entries.forEach((entry) => {
             if (entry.isIntersecting) {
               entry.target.classList.add("in-view");
-              // Only animate once.
               io.unobserve(entry.target);
             }
           });
@@ -2095,12 +1712,38 @@
         .forEach((el) => io.observe(el));
 
       // ====================================================================
-      // Floating feather particles — spawn N at random horizontal positions
-      // with staggered delays so the hero feels alive.
+      // Disclosures — tool "Learn more" panels + FAQ items. Accessible:
+      // native <button>, aria-expanded reflects state, aria-controls links to
+      // the panel region. Smooth height via grid-template-rows 0fr→1fr.
+      // ====================================================================
+      function wireDisclosure(selector, openClass, onToggle) {
+        document.querySelectorAll(selector).forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const panel = document.getElementById(btn.getAttribute("aria-controls"));
+            if (!panel) return;
+            const willOpen = btn.getAttribute("aria-expanded") !== "true";
+            btn.setAttribute("aria-expanded", String(willOpen));
+            panel.classList.toggle(openClass, willOpen);
+            if (onToggle) onToggle(btn, willOpen);
+          });
+        });
+      }
+      // Tool cards: swap the label text between "Learn more" / "Hide details".
+      wireDisclosure(".js-toggle", "is-open", (btn, open) => {
+        const label = btn.querySelector(".js-toggle-label");
+        if (label) label.textContent = open ? "Hide details" : "Learn more";
+      });
+      // FAQ items.
+      wireDisclosure(".js-faq", "is-open");
+
+      // ====================================================================
+      // Floating feather particles — spawn N with staggered delays so the
+      // hero feels alive. (Carried over from the original deck.)
       // ====================================================================
       (function spawnFeathers() {
         const field = document.getElementById("featherField");
         if (!field) return;
+        if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
         const SVG =
           '<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" fill="none">' +
           '<defs><linearGradient id="fg-g" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">' +
@@ -2118,7 +1761,6 @@
           field.appendChild(f);
         }
       })();
-
     </script>
   </body>
 </html>

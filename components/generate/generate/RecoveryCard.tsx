@@ -91,7 +91,7 @@ export function RecoveryCard({ gen }: Props) {
             className={
               status === "error"
                 ? "h-5 w-5 text-destructive"
-                : "h-5 w-5 text-amber-500"
+                : "h-5 w-5 text-warning"
             }
           />
           <CardTitle>{headline}</CardTitle>
@@ -134,9 +134,9 @@ export function RecoveryCard({ gen }: Props) {
         {!canResume && partialCount > 0 && (
           <Alert>
             <AlertDescription className="flex items-center gap-2 text-sm">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
-              All personas already have a saved response — nothing to resume.
-              Use the partial set to continue.
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
+              Every persona already has a saved response, so there&apos;s nothing to
+              resume. Click Use partial set to continue.
             </AlertDescription>
           </Alert>
         )}
@@ -172,8 +172,8 @@ export function RecoveryCard({ gen }: Props) {
 
         {pendingCount > 0 && partialCount > 0 && (
           <p className="text-[11px] text-muted-foreground">
-            Resume re-runs only the {pendingCount.toLocaleString()} pending personas.
-            Already-saved responses are preserved.
+            Resume generates only the {pendingCount.toLocaleString()} pending personas
+            and keeps the responses already saved.
           </p>
         )}
       </CardContent>
@@ -196,9 +196,9 @@ function Stat({
 }) {
   const valueClass =
     tone === "success"
-      ? "text-green-600 dark:text-green-400"
+      ? "text-success"
       : tone === "warning"
-        ? "text-amber-600 dark:text-amber-400"
+        ? "text-warning"
         : "text-foreground";
   return (
     <div className="flex flex-col gap-0.5">

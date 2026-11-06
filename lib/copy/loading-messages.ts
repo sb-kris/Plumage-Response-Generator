@@ -16,7 +16,7 @@ export const PERSONA_SYNTHESIS_MESSAGES = [
   "Convincing skeptics they exist...",
   "Wiring up sentiment archetypes...",
   "Distributing personalities across continents...",
-  "Picking emails — no one gets 'admin@'...",
+  "Picking emails (nobody gets 'admin@')...",
   "Whispering use cases to the LLM...",
 ];
 

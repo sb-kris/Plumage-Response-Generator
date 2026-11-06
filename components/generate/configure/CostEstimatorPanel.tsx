@@ -243,13 +243,13 @@ function PanelBody({
 
       {noSurvey && (
         <p className="text-[11px] text-muted-foreground">
-          Pick a survey to refine the estimate — using a rough average question count until then.
+          No survey selected, so this uses an average question count. Pick a survey for a closer estimate.
         </p>
       )}
 
       {/* Unknown-pricing banner */}
       {estimate.pricingWarnings.length > 0 && (
-        <div className="flex items-start gap-1.5 rounded-md border border-amber-300/60 bg-amber-50/70 p-2 text-[11px] leading-relaxed text-amber-700 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-300">
+        <div className="flex items-start gap-1.5 rounded-md border border-warning/30 bg-warning/10 p-2 text-[11px] leading-relaxed text-warning">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <div>
             {estimate.pricingWarnings.map((w, i) => (
@@ -287,7 +287,7 @@ function PanelBody({
           <span className="text-sm font-semibold">Total</span>
           <span className="font-mono text-xl font-bold tabular-nums">
             {estimate.unknownPricing && estimate.totalCost === null ? (
-              "—"
+              "N/A"
             ) : (
               <AnimatedNumber
                 value={estimate.totalCost ?? 0}
@@ -303,11 +303,11 @@ function PanelBody({
           </span>
         </div>
         <div className="flex items-baseline justify-between text-xs text-muted-foreground">
-          <span>Wall-clock</span>
+          <span>Estimated time</span>
           <span className="tabular-nums">{formatMinutes(estimate.totalSeconds)}</span>
         </div>
         <p className="mt-1 text-[10px] text-muted-foreground">
-          Estimates include a 15% buffer for retries and variability. Actual cost depends on prompt length and validator retries.
+          Includes 15% extra to cover retries. The real cost depends on prompt length and how many responses need a retry.
         </p>
       </div>
 
@@ -317,7 +317,7 @@ function PanelBody({
           className={cn(
             "flex items-start gap-2 rounded-md border p-2.5 text-[11px] leading-relaxed",
             suggestion.icon === "ok"
-              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              ? "border-success/30 bg-success/10 text-success"
               : suggestion.icon === "warn"
                 ? "border-warning/30 bg-warning/10 text-warning"
                 : "border-primary/30 bg-primary/10 text-primary",
@@ -518,9 +518,9 @@ function BreakdownTable({
             <td className="text-right tabular-nums">×{estimate.bufferFactor}</td>
           </tr>
           <tr>
-            <td>Response concurrency</td>
+            <td>Parallel requests</td>
             <td className="text-right tabular-nums">
-              {estimate.responseConcurrency}× parallel calls
+              {estimate.responseConcurrency} at a time
             </td>
           </tr>
         </tbody>
@@ -529,9 +529,9 @@ function BreakdownTable({
       <div className="flex items-start gap-1.5 pt-1 text-muted-foreground">
         <Info className="mt-0.5 h-3 w-3 shrink-0" />
         <span>
-          Token counts are estimates. Actual usage depends on model, language,
-          and response length. Pricing from{" "}
-          <span className="font-medium text-foreground">lib/llm/pricing.ts</span>.
+          Token counts are estimates. Real usage depends on the model, the
+          language, and how long the responses are. Prices come from
+          Plumage&apos;s built-in price list.
         </span>
       </div>
     </div>

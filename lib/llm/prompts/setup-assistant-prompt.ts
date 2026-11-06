@@ -20,6 +20,10 @@
 // general public knowledge OR ground in the inputs only.
 
 import type { SetupAssistantRequest, SentimentShape } from "@/lib/generation/setup-assistant-types";
+import {
+  DATASET_PURPOSES,
+  isDatasetPurpose,
+} from "@/lib/profiles/dataset-purposes";
 
 export interface BuildSetupPromptResult {
   systemPrompt: string;
@@ -189,6 +193,14 @@ CRITICAL: after any web searches, your FINAL message must be ONLY the JSON objec
 
 Return ONLY the JSON object.`;
 
+  // Dataset Purpose guidance — only injected when the user picked a
+  // specific preset ("custom" or absent leave the prompt unchanged so
+  // behavior matches the pre-purpose Assistant exactly). This is
+  // guidance-only text: the LLM output schema is NOT extended, and the
+  // validator remains untouched. See lib/profiles/dataset-purposes.ts
+  // for the metadata table.
+  const purposeBlock = buildPurposeBlock(inputs.datasetPurpose);
+
   const userPrompt = [
     companyBlock,
     "---",
@@ -197,6 +209,7 @@ Return ONLY the JSON object.`;
     existingBlock,
     "---",
     ssVarsBlock,
+    ...(purposeBlock ? ["---", purposeBlock] : []),
     ...(researchSection ? ["---", researchSection] : []),
     "---",
     directives,
@@ -236,4 +249,47 @@ function slugify(s: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+/**
+ * Compose the DATASET PURPOSE block appended to the user prompt.
+ *
+ * Returns null when the caller passed no purpose, or picked "custom" —
+ * in either case the prompt should look identical to how it did before
+ * this feature existed. That's the safety guarantee: unset/custom
+ * users are never exposed to a new behavior surface.
+ *
+ * When a real preset is set, we surface:
+ *   1. The label so the LLM sees the human-facing description
+ *   2. The assistantGuidance paragraph (steers what to prioritise)
+ *   3. Variable emphasis bullets (what KIND of variables to suggest),
+ *      when the purpose defines them
+ *   4. A "Language to avoid" note built from avoidTerms, when present
+ *   5. A themesVocabulary hint so the model can frame its theme
+ *      labels in the right register (Research dimensions / Advocacy
+ *      angles / Issue themes / …)
+ *
+ * All of this is GUIDANCE — the OUTPUT SCHEMA is unchanged, so the
+ * validator and the dialog's apply-flow are unaffected.
+ */
+function buildPurposeBlock(purpose: unknown): string | null {
+  if (!isDatasetPurpose(purpose) || purpose === "custom") return null;
+  const meta = DATASET_PURPOSES[purpose];
+
+  const parts: string[] = [`DATASET PURPOSE\n${meta.label}`];
+  parts.push(`Guidance:\n${meta.assistantGuidance}`);
+
+  if (meta.variableEmphasis && meta.variableEmphasis.length > 0) {
+    parts.push(
+      `Variable emphasis:\n${meta.variableEmphasis.map((v) => `- ${v}`).join("\n")}`,
+    );
+  }
+
+  if (meta.avoidTerms && meta.avoidTerms.length > 0) {
+    parts.push(`Language to avoid:\nAvoid overusing ${meta.avoidTerms.join(", ")}.`);
+  }
+
+  parts.push(`When suggesting themes, frame them as ${meta.themesVocabulary}.`);
+
+  return parts.join("\n\n");
 }
