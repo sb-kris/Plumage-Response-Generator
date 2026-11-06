@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, Roboto_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
@@ -8,19 +8,29 @@ import { ButtonClickListener } from "@/components/effects/ButtonClickListener";
 import "./globals.css";
 
 // Twigs (SurveySparrow's design system) type: DM Sans for UI and headings,
-// Roboto Mono for data, labels and code. Twigs ships 400 / 500 / 700.
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
+// Roboto Mono for data, labels and code.
+//
+// Self-hosted (app/fonts, latin subset, variable weight) rather than
+// next/font/google: the Google loader fetches CSS at build time, and a bad
+// response on Vercel's builder failed the deploy with "Cannot read
+// properties of null (reading '1')". Local files make the build offline.
+const dmSans = localFont({
+  src: "./fonts/DMSans-latin-variable.woff2",
+  weight: "100 1000",
+  style: "normal",
   variable: "--font-sans",
   display: "swap",
+  fallback: ["system-ui", "Arial", "sans-serif"],
 });
 
-const robotoMono = Roboto_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
+const robotoMono = localFont({
+  src: "./fonts/RobotoMono-latin-variable.woff2",
+  weight: "100 700",
+  style: "normal",
   variable: "--font-mono",
   display: "swap",
+  fallback: ["ui-monospace", "Menlo", "monospace"],
+  adjustFontFallback: false,
 });
 
 export const metadata: Metadata = {
