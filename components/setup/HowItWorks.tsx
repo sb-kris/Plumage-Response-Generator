@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useSetupStore } from "@/store/setup-store";
@@ -71,11 +72,20 @@ export function HowItWorks() {
   const responseModel = useSetupStore((s) => s.llm.responseModel);
 
   // Restore the per-browser collapsed choice after mount (hydration-safe).
+  // With no explicit choice yet, start collapsed for returning users (anyone
+  // who saved a key has used Plumage before) so the connect cards come first.
   useEffect(() => {
     try {
-      if (localStorage.getItem(COLLAPSED_KEY) === "1") setCollapsed(true);
+      const pref = localStorage.getItem(COLLAPSED_KEY);
+      if (pref === "1") setCollapsed(true);
+      else if (pref === null) {
+        const saved = JSON.parse(localStorage.getItem("plumage:setup:v1") ?? "null") as {
+          state?: { rememberSS?: boolean; rememberLLM?: boolean };
+        } | null;
+        if (saved?.state?.rememberSS || saved?.state?.rememberLLM) setCollapsed(true);
+      }
     } catch {
-      // Storage blocked: just show the section.
+      // Storage blocked or unreadable: just show the section.
     }
   }, []);
 
@@ -123,15 +133,14 @@ export function HowItWorks() {
       className="rounded-lg border border-border/60 bg-card"
     >
       {/* Header row: always visible, doubles as the collapsed state. */}
-      <div className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
-        <div className="min-w-0 max-w-2xl space-y-1">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+        <div className="min-w-0 space-y-0.5">
           <h2 id="how-it-works-title" className="text-base font-semibold">
             How Plumage works
           </h2>
           <p className="text-sm text-muted-foreground">
-            Plumage fills a SurveySparrow survey with realistic responses, so
-            dashboards and reports look like a real customer&apos;s when you demo
-            them. Connect your accounts below, then it&apos;s four steps.
+            Four steps after you connect. Click through to see each one with
+            sample data, no keys needed.
           </p>
         </div>
         <Button
@@ -153,16 +162,17 @@ export function HowItWorks() {
         <div id="how-it-works-body" className="space-y-5 border-t px-5 pb-5 pt-4">
           {/* The three things people ask first: how long, how much, is it safe. */}
           <ul className="grid gap-2 sm:grid-cols-3">
-            <Fact value="About 5 min" label="from connected to responses in your survey" />
+            <Fact value="About 5 min" label="from connecting to pushing" />
             <Fact
               value={sampleCost !== null ? formatUsd(sampleCost) : "Varies"}
-              label={
+              label={`for ${SAMPLE_RESPONSES} responses`}
+              hint={
                 sampleCost !== null
-                  ? `for ${SAMPLE_RESPONSES} responses on a ${SAMPLE_QUESTIONS}-question survey, with your current models`
-                  : "depends on the AI model you pick"
+                  ? `Estimate for ${SAMPLE_RESPONSES} responses on a ${SAMPLE_QUESTIONS}-question survey with the models picked below. It updates when you change models.`
+                  : "Depends on the AI model you pick."
               }
             />
-            <Fact value="You confirm" label="before anything is sent to SurveySparrow" />
+            <Fact value="You confirm" label="before anything is sent" />
           </ul>
 
           {/* Stepper: horizontal tabs joined by a line. Scrolls sideways on
@@ -227,45 +237,17 @@ export function HowItWorks() {
             </div>
           </div>
 
-          {/* Panel: explanation on the left, sample screen on the right. */}
+          {/* Panel: explanation on the left, sample screen on the right.
+              The step title is already in the tab above, so not repeated. */}
           <div
             role="tabpanel"
             id={`how-panel-${step.id}`}
             aria-labelledby={`how-tab-${step.id}`}
-            className="grid gap-5 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
+            className="grid items-start gap-5 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
           >
-            <div className="flex flex-col gap-4">
-              <div className="space-y-1.5">
-                <h3 className="text-sm font-semibold">{step.title}</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">{step.summary}</p>
-              </div>
-              <div className="mt-auto flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActive((a) => Math.max(0, a - 1))}
-                  disabled={active === 0}
-                >
-                  Back
-                </Button>
-                {!isLast ? (
-                  <Button size="sm" onClick={() => setActive((a) => a + 1)}>
-                    Next: {STEPS[active + 1]!.title}
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      document
-                        .getElementById("setup-connections")
-                        ?.scrollIntoView({ behavior: "smooth", block: "start" })
-                    }
-                  >
-                    Connect your accounts
-                  </Button>
-                )}
-              </div>
-            </div>
+            <p className="text-sm leading-relaxed text-muted-foreground md:pt-1">
+              {step.summary}
+            </p>
 
             {/* Sample screen in a small window frame. The title bar says it's
                 an example, so nothing floats over the content. */}
@@ -283,17 +265,67 @@ export function HowItWorks() {
               </div>
             </figure>
           </div>
+
+          {/* Tour navigation. Outline buttons: the tour is secondary, so the
+              page's solid teal stays on the real actions. The last step
+              hands off to the connect section. */}
+          <div className="flex items-center justify-between gap-3 border-t pt-4">
+            <span className="text-xs tabular-nums text-muted-foreground">
+              Step {active + 1} of {STEPS.length}
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setActive((a) => Math.max(0, a - 1))}
+                disabled={active === 0}
+              >
+                Back
+              </Button>
+              {!isLast ? (
+                <Button variant="outline" size="sm" onClick={() => setActive((a) => a + 1)}>
+                  Next: {STEPS[active + 1]!.title}
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    document
+                      .getElementById("setup-connections")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                  }
+                >
+                  Connect your accounts
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </section>
   );
 }
 
-function Fact({ value, label }: { value: string; label: string }) {
+function Fact({ value, label, hint }: { value: string; label: string; hint?: string }) {
   return (
-    <li className="rounded-lg bg-muted/50 px-3 py-2.5">
-      <span className="block text-base font-semibold tabular-nums text-foreground">{value}</span>
-      <span className="block text-xs text-muted-foreground">{label}</span>
+    <li className="flex items-baseline gap-2 rounded-lg bg-muted/50 px-3 py-2.5">
+      <span className="shrink-0 text-base font-semibold tabular-nums text-foreground">{value}</span>
+      <span className="min-w-0 truncate text-xs text-muted-foreground">{label}</span>
+      {hint && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label="How this is worked out"
+              className="ml-auto self-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Info className="h-3.5 w-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">{hint}</TooltipContent>
+        </Tooltip>
+      )}
     </li>
   );
 }
@@ -429,8 +461,8 @@ function PushPreview() {
         <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
           <dt className="text-muted-foreground">Survey</dt>
           <dd className="truncate">Nexora Living · Post-install feedback</dd>
-          <dt className="text-muted-foreground">Workspace</dt>
-          <dd>Demo workspace (US)</dd>
+          <dt className="text-muted-foreground">Account</dt>
+          <dd className="truncate">Nexora Living (nexoralivingdemo.surveysparrow.com)</dd>
           <dt className="text-muted-foreground">Workflows</dt>
           <dd>Off: no emails or automations fire</dd>
           <dt className="text-muted-foreground">Tag</dt>

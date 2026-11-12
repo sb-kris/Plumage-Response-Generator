@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { ApiKeyInput } from "@/components/shared/ApiKeyInput";
 import { ModelSelector } from "./ModelSelector";
 import { ProviderSelect } from "./ProviderSelect";
+import { ProviderIcon } from "@/components/shared/ProviderIcon";
 import {
   CheckCircle2,
   XCircle,
@@ -110,16 +111,14 @@ export function LLMConfigForm() {
 
   return (
     <Card className="flex h-full flex-col border-border/60 shadow-none">
-      <CardHeader className="p-5 pb-3">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Step 2 · AI provider
-        </div>
+      <CardHeader className="space-y-1 p-5 pb-4">
         <CardTitle className="flex items-center gap-2">
+          <ProviderIcon provider={llm.provider} className="h-6 w-6 shrink-0" />
           AI provider
           <ConnectionBadge status={connection.status} />
         </CardTitle>
         <CardDescription>
-          Models for persona synthesis and response generation.
+          Plumage uses this to create personas and write their answers.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4 p-5 pt-0">

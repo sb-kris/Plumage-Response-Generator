@@ -17,7 +17,7 @@ import { getRegion } from "@/lib/surveysparrow/regions";
 import { Send } from "lucide-react";
 
 // The one confirmation before an irreversible write into a SurveySparrow
-// workspace. It names the destination (survey, workspace, region) and the
+// workspace. It names the destination (survey, account, region) and the
 // side effects (workflows, tags) so an SE connected to a customer's
 // account can't push into the wrong place by accident.
 //
@@ -41,6 +41,7 @@ export function PushConfirmDialog({
   onConfirm,
 }: PushConfirmDialogProps) {
   const ss = useSetupStore((s) => s.surveySparrow);
+  const account = useSetupStore((s) => s.ssConnection.account ?? null);
   const selectedSurveyId = useSurveyStore((s) => s.selectedSurveyId);
   const surveys = useSurveyStore((s) => s.surveys.data);
   const tags = useGenerationStore((s) => s.draft.systemMetadata.tags);
@@ -49,7 +50,9 @@ export function PushConfirmDialog({
     surveys?.find((s) => s.id === selectedSurveyId)?.name ??
     (selectedSurveyId !== null ? `Survey #${selectedSurveyId}` : "No survey selected");
   const region = getRegion(ss.region);
-  const workspace = ss.workspaceNickname.trim() || "Unnamed workspace";
+  // The account the key belongs to (accountinfo). Falls back to the region
+  // alone if SurveySparrow didn't return account details.
+  const workspace = account?.companyName || account?.domain || "Your SurveySparrow account";
   const regionLabel = region ? `${region.shortLabel} · ${region.baseUrl.replace(/^https?:\/\//, "")}` : ss.region;
   const tagList = tags.enabled && tags.values.length > 0 ? tags.values.join(", ") : null;
   const channelCount = ss.channelsEnabled ? ss.channels.length : 0;
@@ -76,9 +79,12 @@ export function PushConfirmDialog({
           <dt className="text-muted-foreground">Survey</dt>
           <dd className="min-w-0 break-words font-medium">{surveyName}</dd>
 
-          <dt className="text-muted-foreground">Workspace</dt>
+          <dt className="text-muted-foreground">Account</dt>
           <dd className="min-w-0 break-words">
-            {workspace} <span className="text-muted-foreground">({regionLabel})</span>
+            <span className="font-medium">{workspace}</span>{" "}
+            <span className="text-muted-foreground">
+              ({account?.domain && account.domain !== workspace ? account.domain : regionLabel})
+            </span>
           </dd>
 
           <dt className="text-muted-foreground">Workflows</dt>

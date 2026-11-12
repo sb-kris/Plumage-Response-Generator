@@ -1,7 +1,7 @@
 "use client";
 
 import { toast } from "sonner";
-import { useSetupStore } from "@/store/setup-store";
+import { useSetupStore, type SSAccount } from "@/store/setup-store";
 import { loggedFetch } from "@/store/api-logs-store";
 import { playErrorChime, playSuccessChime } from "@/lib/effects/sound-effects";
 import { getModelsByProvider, getProviderMeta } from "@/lib/llm/models";
@@ -15,12 +15,24 @@ import { getModelsByProvider, getProviderMeta } from "@/lib/llm/models";
 // doesn't fail silently.
 
 interface TestOptions {
+  /** Saved-key reconnect: no success toast; failures still toast. */
   quiet?: boolean;
+  /** Automatic test after typing or pasting a key: no toasts or sounds at
+   *  all. The card shows the result inline. */
+  auto?: boolean;
 }
 
-export async function testSurveySparrowConnection({ quiet = false }: TestOptions = {}) {
+export async function testSurveySparrowConnection({ quiet = false, auto = false }: TestOptions = {}) {
   const { surveySparrow: ss, setSSConnection: setConnection } = useSetupStore.getState();
-  setConnection({ status: "validating", error: null, detail: null });
+  const testedKey = ss.apiKey;
+  const testedRegion = ss.region;
+  // The key or region changed while this test was running: drop the result
+  // and go back to idle, so the newer values get tested instead.
+  const isStale = () => {
+    const now = useSetupStore.getState().surveySparrow;
+    return now.apiKey !== testedKey || now.region !== testedRegion;
+  };
+  setConnection({ status: "validating", error: null, detail: null, account: null });
   try {
     const res = await loggedFetch(
       "/api/surveysparrow/test-connection",
@@ -36,29 +48,47 @@ export async function testSurveySparrowConnection({ quiet = false }: TestOptions
       error?: string;
       sampleSurveyName?: string | null;
       hasSurveys?: boolean;
+      account?: SSAccount | null;
     };
-    if (!json.ok) {
-      setConnection({ status: "error", error: json.error ?? "Connection failed", detail: null });
-      toast.error(
-        quiet ? "Your saved SurveySparrow key didn't work" : "SurveySparrow connection failed",
-        { description: json.error ?? "Unknown error" },
-      );
-      void playErrorChime();
+    if (isStale()) {
+      setConnection({ status: "idle", error: null, detail: null, account: null });
       return;
     }
+    if (!json.ok) {
+      setConnection({ status: "error", error: json.error ?? "Connection failed", detail: null });
+      if (!auto) {
+        toast.error(
+          quiet ? "Your saved SurveySparrow key didn't work" : "SurveySparrow connection failed",
+          { description: json.error ?? "Unknown error" },
+        );
+        void playErrorChime();
+      }
+      return;
+    }
+    const account = json.account ?? null;
+    const where = account?.companyName ? account.companyName : "this workspace";
+    // Detail only carries what the account pill doesn't: an empty workspace.
     const detail = json.hasSurveys
-      ? `Connected. Your key can read surveys in this workspace (for example "${json.sampleSurveyName}").`
-      : "Connected, but this workspace has no surveys yet. Create one in SurveySparrow before you generate responses.";
-    setConnection({ status: "ok", error: null, lastSuccessAt: Date.now(), detail });
-    if (!quiet) {
-      toast.success("SurveySparrow connected", { description: detail });
+      ? null
+      : `${where} has no surveys yet. Create one in SurveySparrow before you generate responses.`;
+    setConnection({ status: "ok", error: null, lastSuccessAt: Date.now(), detail, account });
+    if (!quiet && !auto) {
+      toast.success("SurveySparrow connected", {
+        description: account ? `Connected to ${account.companyName || account.domain}.` : undefined,
+      });
       void playSuccessChime();
     }
   } catch (err) {
+    if (isStale()) {
+      setConnection({ status: "idle", error: null, detail: null, account: null });
+      return;
+    }
     const msg = err instanceof Error ? err.message : "Network error";
     setConnection({ status: "error", error: msg, detail: null });
-    toast.error("Network error", { description: msg });
-    void playErrorChime();
+    if (!auto) {
+      toast.error("Network error", { description: msg });
+      void playErrorChime();
+    }
   }
 }
 

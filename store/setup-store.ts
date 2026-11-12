@@ -32,6 +32,16 @@ export interface ChannelConfig {
   locked: boolean;
 }
 
+/** The SurveySparrow account a key belongs to (from accountinfo). */
+export interface SSAccount {
+  companyName: string;
+  /** e.g. nexoralivingdemo.surveysparrow.com */
+  domain: string;
+  logoUrl: string | null;
+  /** false when SurveySparrow reports the account as inactive. */
+  active: boolean;
+}
+
 export interface ConnectionState {
   status: ConnectionStatus;
   // The error message returned by the API on failure
@@ -40,6 +50,8 @@ export interface ConnectionState {
   lastSuccessAt: number | null;
   // Optional human-readable detail shown on success (e.g. "Found 12 surveys")
   detail: string | null;
+  /** SurveySparrow only: the connected account, when accountinfo answered. */
+  account?: SSAccount | null;
 }
 
 const idleConnection: ConnectionState = {
@@ -47,12 +59,12 @@ const idleConnection: ConnectionState = {
   error: null,
   lastSuccessAt: null,
   detail: null,
+  account: null,
 };
 
 interface SurveySparrowConfig {
   region: SurveySparrowRegion;
   apiKey: string;
-  workspaceNickname: string;
   /** When true, push events fire survey notification/automation rules. Default: false. */
   triggerWorkflow: boolean;
   /** When true, responses are distributed across `channels` by weight. */
@@ -102,7 +114,6 @@ interface SetupStore {
 const defaultSS: SurveySparrowConfig = {
   region: "us",
   apiKey: "",
-  workspaceNickname: "",
   triggerWorkflow: false,
   channelsEnabled: false,
   channels: [],
@@ -146,7 +157,6 @@ export const useSetupStore = create<SetupStore>()(
       const next = { ...s.surveySparrow, [key]: value };
       // These fields don't affect API auth — changing them keeps the connection valid.
       const affectsConnection =
-        key !== "workspaceNickname" &&
         key !== "triggerWorkflow" &&
         key !== "channelsEnabled" &&
         key !== "channels";
@@ -269,7 +279,7 @@ export const useSetupStore = create<SetupStore>()(
           rememberSS: p.rememberSS ?? false,
           rememberLLM: p.rememberLLM ?? false,
           surveySparrow: p.surveySparrow
-            ? { ...current.surveySparrow, ...p.surveySparrow }
+            ? withoutLegacyFields({ ...current.surveySparrow, ...p.surveySparrow })
             : current.surveySparrow,
           llm: p.llm ? { ...current.llm, ...p.llm } : current.llm,
         };
@@ -291,4 +301,13 @@ export function useSetupHydrated() {
     return useSetupStore.persist.onFinishHydration(() => setHydrated(true));
   }, []);
   return hydrated;
+}
+
+/** Settings saved before the workspace nickname was replaced by account info
+ *  can still carry it; drop it so it isn't written back. */
+function withoutLegacyFields(ss: SurveySparrowConfig): SurveySparrowConfig {
+  const { workspaceNickname: _legacy, ...rest } = ss as SurveySparrowConfig & {
+    workspaceNickname?: string;
+  };
+  return rest;
 }

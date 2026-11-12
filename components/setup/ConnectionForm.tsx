@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSetupStore } from "@/store/setup-store";
-import type { ChannelConfig } from "@/store/setup-store";
+import type { ChannelConfig, SSAccount } from "@/store/setup-store";
 import { testSurveySparrowConnection } from "@/lib/setup/connection-tests";
 import { RememberKeyToggle } from "@/components/setup/RememberKeyToggle";
 import { REGION_LIST, getRegion } from "@/lib/surveysparrow/regions";
@@ -37,7 +37,9 @@ import {
   Lock,
   LockOpen,
   ChevronDown,
+  ExternalLink,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -190,6 +192,21 @@ export function ConnectionForm() {
 
   // ── SS connection test ─────────────────────────────────────────────────────
 
+  // Test automatically a moment after a key is pasted or the region changes,
+  // so the account shows up without a click. Only from idle: a finished test
+  // (ok or error) waits for the next edit, and a running one isn't doubled
+  // (ConnectionRestorer may already be testing a remembered key).
+  useEffect(() => {
+    if (!ss.apiKey.trim() || connection.status !== "idle") return;
+    const t = setTimeout(() => {
+      const st = useSetupStore.getState();
+      if (st.ssConnection.status === "idle" && st.surveySparrow.apiKey.trim()) {
+        void testSurveySparrowConnection({ auto: true });
+      }
+    }, 700);
+    return () => clearTimeout(t);
+  }, [ss.apiKey, ss.region, connection.status]);
+
   async function handleTest() {
     setLastTestedRegion(ss.region);
     await testSurveySparrowConnection();
@@ -199,29 +216,24 @@ export function ConnectionForm() {
 
   return (
     <Card className="flex h-full flex-col border-border/60 shadow-none">
-      <CardHeader className="p-5 pb-3">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Step 1 · Workspace
-        </div>
+      <CardHeader className="space-y-1 p-5 pb-4">
         <CardTitle className="flex items-center gap-2">
           <SurveySparrowLogo className="h-6 w-6 shrink-0" />
           SurveySparrow
           <ConnectionBadge status={connection.status} />
         </CardTitle>
         <CardDescription>
-          Use an account-level API key that can access surveys and responses.
+          Plumage reads your surveys and pushes responses with this key.
         </CardDescription>
       </CardHeader>
 
       <CardContent className="flex flex-1 flex-col gap-4 p-5 pt-0">
-        {/* Region + Nickname */}
-        <div className="grid gap-4 md:grid-cols-2">
+        {/* Region */}
           <div className="space-y-2">
             <Label htmlFor="ss-region">Data center region</Label>
             <Select
               value={ss.region}
               onValueChange={(v) => setSSField("region", v as typeof ss.region)}
-              disabled={validating}
             >
               <SelectTrigger id="ss-region">
                 {/* Compact closed state: short code + muted host. The full
@@ -254,18 +266,6 @@ export function ConnectionForm() {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="ss-nickname">Workspace nickname (optional)</Label>
-            <Input
-              id="ss-nickname"
-              placeholder="e.g. Nexora Production, Demo Sandbox"
-              value={ss.workspaceNickname}
-              onChange={(e) => setSSField("workspaceNickname", e.target.value)}
-              maxLength={40}
-            />
-          </div>
-        </div>
-
         {/* API Key */}
         <div className="space-y-2">
           <Label htmlFor="ss-api-key">API key</Label>
@@ -274,8 +274,17 @@ export function ConnectionForm() {
             placeholder="Paste your SurveySparrow API key"
             value={ss.apiKey}
             onChange={(v) => setSSField("apiKey", v)}
-            disabled={validating}
           />
+          {validating ? (
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground" role="status">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Checking your key…
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Use an account-level key with access to surveys and responses.
+            </p>
+          )}
           <RememberKeyToggle
             id="ss-remember"
             checked={remember}
@@ -283,22 +292,23 @@ export function ConnectionForm() {
           />
         </div>
 
-        {/* Connection status alerts */}
+        {/* Result: the connected account, or what went wrong. */}
+        {connection.status === "ok" && connection.account && (
+          <AccountPill account={connection.account} />
+        )}
+        {connection.status === "ok" && connection.detail && (
+          <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+            <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" />
+            <span className="min-w-0 break-words">{connection.detail}</span>
+          </div>
+        )}
         {connection.status === "error" && connection.error && (
           <Alert variant="destructive">
-            <AlertDescription className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0" />
+            <AlertDescription className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               {connection.error}
             </AlertDescription>
           </Alert>
-        )}
-        {/* Compact success note — the floating ready bar on the page owns
-            the "what's next" moment, so this stays a slim confirmation. */}
-        {connection.status === "ok" && connection.detail && (
-          <div className="flex items-center gap-2 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
-            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-            <span className="min-w-0 break-words">{connection.detail}</span>
-          </div>
         )}
 
         {/* Push behavior — advanced, collapsed by default (see pushOpen).
@@ -521,7 +531,7 @@ export function ConnectionForm() {
             setup cards share the same footer position. */}
         <div className="mt-auto flex items-center justify-between gap-3 border-t pt-4">
           <p className="text-xs text-muted-foreground">
-            Checks your key and region by reading your survey list.
+            Plumage checks the key as soon as you paste it.
           </p>
           <Button onClick={handleTest} disabled={!canTest}>
             {validating && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -544,6 +554,69 @@ export function ConnectionForm() {
 /** "https://api.surveysparrow.com" → "api.surveysparrow.com" (display only). */
 function stripProtocol(url: string): string {
   return url.replace(/^https?:\/\//, "");
+}
+
+// ---------------------------------------------------------------------------
+// Connected account: who this key belongs to, from accountinfo.
+// ---------------------------------------------------------------------------
+
+function AccountPill({ account }: { account: SSAccount }) {
+  const [logoFailed, setLogoFailed] = useState(false);
+  const name = account.companyName || account.domain;
+  const initial = name.trim().charAt(0).toUpperCase() || "?";
+  const showLogo = account.logoUrl && !logoFailed;
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-3 rounded-lg border bg-accent/40 px-3 py-2.5">
+        {showLogo ? (
+          // eslint-disable-next-line @next/next/no-img-element -- remote logo from SurveySparrow, any host
+          <img
+            src={account.logoUrl!}
+            alt=""
+            className="h-8 w-8 shrink-0 rounded-md bg-card object-contain"
+            onError={() => setLogoFailed(true)}
+          />
+        ) : (
+          <span
+            aria-hidden
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground"
+          >
+            {initial}
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold leading-tight">{name}</p>
+          {account.domain && account.domain !== name && (
+            <p className="truncate font-mono text-xs leading-tight text-muted-foreground">
+              {account.domain}
+            </p>
+          )}
+        </div>
+        {account.domain && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <a
+                href={`https://${account.domain}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Open ${name} in SurveySparrow`}
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-card hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </TooltipTrigger>
+            <TooltipContent>Open in SurveySparrow</TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+      {!account.active && (
+        <p className="flex items-center gap-1.5 text-xs text-warning">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          SurveySparrow reports this account as inactive. Pushes may fail.
+        </p>
+      )}
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------

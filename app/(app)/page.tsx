@@ -6,7 +6,7 @@ import { LLMConfigForm } from "@/components/setup/LLMConfigForm";
 import { HowItWorks } from "@/components/setup/HowItWorks";
 import { useSetupStore } from "@/store/setup-store";
 import { Button } from "@/components/ui/button";
-import { Sparkles, ShieldCheck, ArrowRight, Check, CheckCircle2 } from "lucide-react";
+import { Sparkles, ShieldCheck, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -24,7 +24,7 @@ export default function SetupPage() {
   return (
     // Extra bottom padding while the ready bar floats so it never covers
     // the cards' footer buttons at the end of the scroll range.
-    <div className={cn("space-y-6", bothConnected && "pb-20")}>
+    <div className={cn("space-y-8", bothConnected && "pb-20")}>
       <header className="space-y-1.5">
         <div className="flex items-center gap-2.5">
           <h1 className="text-2xl font-semibold tracking-tight">Setup</h1>
@@ -36,49 +36,65 @@ export default function SetupPage() {
           )}
         </div>
         <p className="max-w-2xl text-muted-foreground">
-          Connect SurveySparrow and an AI provider to start generating demo
-          datasets.
+          Plumage fills a SurveySparrow survey with realistic demo responses.
+          Connect two accounts below to get started.
         </p>
       </header>
 
-      {/* What Plumage is and a sample walk-through, viewable without keys. */}
+      {/* Secondary: what Plumage does, with sample screens. Viewable without
+          keys, collapsible, and visually quieter than the connect section. */}
       <HowItWorks />
 
-      {/* Progress + security row. Deliberately unboxed — the two setup cards
-          below should be the only bordered surfaces competing for attention.
-          Two-step indicator left, key-safety reassurance right (tooltip). */}
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-1">
-        <div className="flex items-center gap-3">
-          <StepChecklistItem n={1} done={ssOk} label="SurveySparrow" />
-          <span aria-hidden className="text-muted-foreground/50">→</span>
-          <StepChecklistItem n={2} done={llmOk} label="AI provider" />
+      {/* Primary task. One heading for the section; each card's own
+          Connected badge shows progress, so there's no separate checklist. */}
+      <section
+        id="setup-connections"
+        aria-labelledby="connect-title"
+        className="scroll-mt-20 space-y-4 pt-2"
+      >
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+          <div className="space-y-0.5">
+            <h2 id="connect-title" className="text-lg font-semibold tracking-tight">
+              Connect your accounts
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {bothConnected
+                ? "Both connected. You're ready to generate."
+                : ssOk || llmOk
+                  ? "One down, one to go. Both are needed before you can generate."
+                  : "Both are needed before you can generate."}
+            </p>
+          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                tabIndex={0}
+                className="inline-flex cursor-help items-center gap-1.5 rounded-sm text-xs text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <ShieldCheck className="h-3.5 w-3.5 text-success" />
+                {rememberAny
+                  ? "Saved keys stay in this browser only"
+                  : "Keys clear when you reload, unless you save them"}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+              By default your keys live in this tab&apos;s memory and are gone
+              when you reload. Turn on &ldquo;Remember on this device&rdquo; under
+              a key to save it in this browser (not encrypted, so only on your own
+              computer). The server uses your key for each request and never
+              stores it.
+            </TooltipContent>
+          </Tooltip>
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="inline-flex cursor-help items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5 text-success" />
-              {rememberAny
-                ? "Saved keys stay in this browser only"
-                : "Keys clear when you reload, unless you save them"}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="max-w-xs">
-            By default your keys live in this tab&apos;s memory and are gone
-            when you reload. Turn on &ldquo;Remember on this device&rdquo; under
-            a key to save it in this browser (not encrypted, so only on your own
-            computer). The server uses your key for each request and never
-            stores it.
-          </TooltipContent>
-        </Tooltip>
-      </div>
 
-      {/* Two-step grid — side by side on desktop, stacked below lg. Cards
-          stretch to equal height; their footers pin to the bottom via
-          mt-auto so the Test connection rows sit at the same position. */}
-      <div id="setup-connections" className="grid scroll-mt-20 gap-4 lg:grid-cols-2">
-        <ConnectionForm />
-        <LLMConfigForm />
-      </div>
+        {/* Side by side on desktop, stacked below lg. Cards
+            stretch to equal height; their footers pin to the bottom via
+            mt-auto so the Test connection rows sit at the same position. */}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <ConnectionForm />
+          <LLMConfigForm />
+        </div>
+      </section>
 
       {/* Floating ready bar: the single "Continue" CTA on this page. Shown
           only when BOTH connections are healthy. Inverted colours (dark bar
@@ -115,41 +131,6 @@ export default function SetupPage() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Step checklist item — numbered marker that becomes a check once the step's
-// connection is healthy. Purely a status read of the setup store; no logic.
-// ---------------------------------------------------------------------------
-
-function StepChecklistItem({
-  n,
-  done,
-  label,
-}: {
-  n: number;
-  done: boolean;
-  label: string;
-}) {
-  return (
-    <div className="flex items-center gap-1.5 text-xs">
-      <span
-        className={cn(
-          "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold tabular-nums transition-colors",
-          done
-            // Done = soft teal, same treatment as the wizard stepper. Green is
-            // reserved for status messages (Connected, success notes).
-            ? "border-primary/40 bg-accent text-accent-foreground"
-            : "border-input bg-card text-muted-foreground",
-        )}
-      >
-        {done ? <Check className="h-2.5 w-2.5" /> : n}
-      </span>
-      <span className={cn("font-medium", done ? "text-foreground" : "text-muted-foreground")}>
-        {label}
-      </span>
     </div>
   );
 }

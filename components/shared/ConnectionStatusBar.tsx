@@ -18,8 +18,10 @@ interface DotProps {
   /** Full label used in tooltips. Defaults to `label` if the abbreviation is
    *  already clear. The pill stays compact; the tooltip stays informative. */
   tooltipLabel?: string;
-  // Optional free-text identifier shown after the label (e.g. workspace nickname).
+  // Optional identifier shown after the label (the connected account name).
   nickname?: string;
+  // Longer form for the tooltip (e.g. "Nexora Living · nexora.surveysparrow.com").
+  nicknameDetail?: string;
   /** Brand symbol shown before the status indicator when status is "ok"
    *  (and the connection isn't stale). Tiny reminder of "plugged into X". */
   brandSymbolSrc?: string;
@@ -29,6 +31,10 @@ interface DotProps {
    *  currentColor (e.g. provider monogram icons). Takes precedence over
    *  brandSymbolSrc when both are provided. */
   brandSymbolNode?: React.ReactNode;
+  /** Connected account's own logo (any https host). When the pill shows an
+   *  account name, this replaces the brand symbol; falls back to it if
+   *  missing or broken. */
+  accountLogoUrl?: string | null;
 }
 
 // Pulsing heartbeat dot for "connected" status — soft outer ring expands and
@@ -52,11 +58,15 @@ function StatusDot({
   label,
   tooltipLabel,
   nickname,
+  nicknameDetail,
   brandSymbolSrc,
   brandSymbolAlt,
   brandSymbolNode,
+  accountLogoUrl,
 }: DotProps) {
   const fullLabel = tooltipLabel ?? label;
+  const [logoFailed, setLogoFailed] = useState(false);
+  useEffect(() => setLogoFailed(false), [accountLogoUrl]);
   // Tick periodically so relative time stays fresh.
   const [, force] = useState(0);
   useEffect(() => {
@@ -114,11 +124,15 @@ function StatusDot({
           ? "failed"
           : "—";
 
-  // Show nickname only once the connection is healthy — pre-test it's noise.
-  const showNickname = nickname && nickname.trim().length > 0 && state.status === "ok";
-  // Brand symbol appears only when connected + fresh — signals "you're
-  // actively plugged into THEIR system" without screaming about it.
-  const showBrandSymbol = (brandSymbolNode || brandSymbolSrc) && state.status === "ok" && !stale;
+  // Account mode: once connected and the account is known, the pill is just
+  // [logo] [status] [account name]. The short label and relative time move
+  // to the tooltip.
+  const showNickname = Boolean(nickname && nickname.trim().length > 0 && state.status === "ok");
+  const useAccountLogo = showNickname && Boolean(accountLogoUrl) && !logoFailed;
+  // Brand symbol appears when connected and fresh, and always in account
+  // mode (it identifies the account, not the health; the dot does that).
+  const showBrandSymbol =
+    (brandSymbolNode || brandSymbolSrc) && state.status === "ok" && (!stale || showNickname);
 
   return (
     <Tooltip>
@@ -129,7 +143,16 @@ function StatusDot({
             color,
           )}
         >
-          {showBrandSymbol && (
+          {useAccountLogo ? (
+            // eslint-disable-next-line @next/next/no-img-element -- remote account logo, any host
+            <img
+              src={accountLogoUrl!}
+              alt=""
+              aria-hidden
+              className="h-4 w-4 rounded-sm object-contain"
+              onError={() => setLogoFailed(true)}
+            />
+          ) : showBrandSymbol && (
             brandSymbolNode ? (
               <span className="inline-flex h-3.5 w-3.5 items-center justify-center opacity-90">
                 {brandSymbolNode}
@@ -146,25 +169,24 @@ function StatusDot({
             )
           )}
           {icon}
-          <span className="font-medium text-foreground">{label}</span>
-          {showNickname && (
+          {showNickname ? (
+            <span className="max-w-[160px] shrink-0 truncate font-medium text-foreground">
+              {nickname}
+            </span>
+          ) : (
             <>
+              <span className="font-medium text-foreground">{label}</span>
               <span className="text-muted-foreground">·</span>
-              <span
-                className="max-w-[120px] truncate font-medium text-foreground"
-                title={nickname}
-              >
-                {nickname}
-              </span>
+              <span className="text-muted-foreground">{summary}</span>
             </>
           )}
-          <span className="text-muted-foreground">·</span>
-          <span className="text-muted-foreground">{summary}</span>
         </div>
       </TooltipTrigger>
       <TooltipContent side="bottom">
         {tooltip}
-        {showNickname && <span className="block opacity-80">Workspace: {nickname}</span>}
+        {showNickname && (
+          <span className="block opacity-80">Account: {nicknameDetail ?? nickname}</span>
+        )}
       </TooltipContent>
     </Tooltip>
   );
@@ -172,7 +194,12 @@ function StatusDot({
 
 export function ConnectionStatusBar() {
   const ssConnection = useSetupStore((s) => s.ssConnection);
-  const ssNickname = useSetupStore((s) => s.surveySparrow.workspaceNickname);
+  const ssAccount = useSetupStore((s) => s.ssConnection.account ?? null);
+  const ssNickname = ssAccount ? ssAccount.companyName || ssAccount.domain : undefined;
+  const ssNicknameDetail =
+    ssAccount && ssAccount.companyName && ssAccount.domain
+      ? `${ssAccount.companyName} · ${ssAccount.domain}`
+      : ssNickname;
   const llmConnection = useSetupStore((s) => s.llmConnection);
   const provider = useSetupStore((s) => s.llm.provider);
   const llmLabel = getProviderLabel(provider);
@@ -186,6 +213,8 @@ export function ConnectionStatusBar() {
         label="SS"
         tooltipLabel="SurveySparrow"
         nickname={ssNickname}
+        nicknameDetail={ssNicknameDetail}
+        accountLogoUrl={ssAccount?.logoUrl ?? null}
         brandSymbolSrc="/brand/surveysparrow-symbol.svg"
         brandSymbolAlt="SurveySparrow"
       />

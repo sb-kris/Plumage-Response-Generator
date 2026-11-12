@@ -30,7 +30,7 @@ export function NavLinks() {
   const bothConnected = ssOk && llmOk;
 
   return (
-    <nav className="flex items-center gap-1">
+    <nav className="flex min-w-0 items-center gap-0.5 overflow-x-auto [scrollbar-width:none] lg:gap-1 [&::-webkit-scrollbar]:hidden">
       {ITEMS.map((item) => {
         // Exact match for "/", prefix match for nested routes (e.g. /generate/foo).
         const active =
@@ -40,7 +40,7 @@ export function NavLinks() {
         const blocked = Boolean(item.requiresConnections) && !bothConnected;
 
         const linkClass = cn(
-          "rounded-md px-3 py-1.5 text-sm transition-colors",
+          "shrink-0 rounded-md px-1.5 py-1.5 text-sm transition-colors sm:px-2.5 lg:px-3",
           active
             ? "bg-accent font-semibold text-accent-foreground"
             : "font-medium text-muted-foreground hover:bg-accent/50 hover:text-foreground",

@@ -17,11 +17,11 @@ export function AppHeader() {
         "sticky top-0 z-40 border-b border-border/60 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/50"
       }
     >
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 md:px-6">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 px-3 sm:px-4 md:px-6">
         {/* Left cluster: wordmark + nav. Replaced the vertical separator with
             whitespace — the separator felt heavy and the gap reads as a
             visual divider on its own. */}
-        <div className="flex items-center gap-6">
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-3 lg:gap-6">
           <PlumageWordmark />
           <NavLinks />
         </div>
@@ -29,9 +29,13 @@ export function AppHeader() {
             separating status info from theme controls. Password auth was
             removed (Plumage relies on the SS/LLM credentials the user
             enters on the Setup page, which live in browser memory only). */}
-        <div className="flex items-center gap-2">
-          <ConnectionStatusBar />
-          <div className="ml-1 flex items-center gap-1 border-l pl-3">
+        {/* Narrow screens: the connection pills drop out (the Setup cards
+            show the same status) so the header never scrolls sideways. */}
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="hidden md:block">
+            <ConnectionStatusBar />
+          </div>
+          <div className="flex items-center gap-0.5 sm:gap-1 md:ml-1 md:border-l md:pl-3">
             <PreferencesMenu />
             <ThemeToggle />
           </div>

@@ -32,10 +32,10 @@ export function PlumageWordmark({
 }) {
   return (
     <div className={cn("flex items-center gap-2.5", className)}>
-      <PlumageMark className="h-9 w-9" />
-      <div className="leading-tight">
+      <PlumageMark className="h-7 w-7 sm:h-9 sm:w-9" />
+      <div className="hidden leading-tight sm:block">
         <div className="text-base font-semibold tracking-tight">Plumage</div>
-        <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+        <div className="hidden text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground lg:block">
           Response Generator
         </div>
         {showTagline && (
