@@ -45,7 +45,14 @@ export async function POST(req: NextRequest) {
   // info is a nice-to-have: if it fails, the connection still counts.
   const [result, accountResult] = await Promise.all([
     surveySparrowFetch<SurveyListResponse>(config, "/v3/surveys?limit=1"),
-    surveySparrowFetch<AccountInfoResponse>(config, "/api/internal/integration/accountinfo"),
+    // Body kept out of the shared API log: it carries plan, subscription and
+    // feature details. Only the identity fields below are used.
+    surveySparrowFetch<AccountInfoResponse>(
+      config,
+      "/api/internal/integration/accountinfo",
+      {},
+      { omitResponseBody: true },
+    ),
   ]);
 
   if (!result.ok) {

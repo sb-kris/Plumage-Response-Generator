@@ -6,6 +6,13 @@ export interface SurveySparrowClientConfig {
   apiKey: string;
 }
 
+export interface SurveySparrowLogOptions {
+  /** Keep the response body out of the API log buffer (served by /api/logs).
+   *  Use for responses carrying account or billing details Plumage doesn't
+   *  need to show. Status, timing and errors are still logged. */
+  omitResponseBody?: boolean;
+}
+
 export interface SurveySparrowFetchResult<T> {
   ok: boolean;
   status: number;
@@ -21,7 +28,10 @@ export async function surveySparrowFetch<T = unknown>(
   config: SurveySparrowClientConfig,
   path: string,
   init: RequestInit = {},
+  logOptions: SurveySparrowLogOptions = {},
 ): Promise<SurveySparrowFetchResult<T>> {
+  const loggedBody = (text: string) =>
+    logOptions.omitResponseBody ? "[response body not logged]" : text;
   const region = getRegion(config.region);
   if (!region) {
     return { ok: false, status: 0, error: `Unknown region: ${config.region}` };
@@ -84,7 +94,7 @@ export async function surveySparrowFetch<T = unknown>(
       httpStatus: res.status,
       error: errMsg,
       responseHeaders: headersToRecord(res.headers),
-      responseBody: text,
+      responseBody: loggedBody(text),
     });
     return { ok: false, status: res.status, error: errMsg };
   }
@@ -93,7 +103,7 @@ export async function surveySparrowFetch<T = unknown>(
     id: logId,
     httpStatus: res.status,
     responseHeaders: headersToRecord(res.headers),
-    responseBody: text,
+    responseBody: loggedBody(text),
   });
   return { ok: true, status: res.status, data: parsed as T };
 }
