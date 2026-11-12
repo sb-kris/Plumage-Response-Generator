@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { withLogSession } from "@/lib/server/log-session";
 import { testProvider } from "@/lib/llm/test-providers";
 import {
   getModel,
@@ -17,7 +18,7 @@ interface TestRequest {
   customModelId?: string;
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   let body: TestRequest;
   try {
     body = await req.json();
@@ -82,3 +83,6 @@ export async function POST(req: NextRequest) {
     model: upstreamModelId ?? body.model,
   });
 }
+
+// Logs this route's upstream calls under the caller's browser session.
+export const POST = withLogSession(handlePOST);

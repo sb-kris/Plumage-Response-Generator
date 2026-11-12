@@ -1,15 +1,17 @@
-// API Logs view — list + clear.
+// API Logs view — list + clear, scoped to the caller's browser.
 //
 // GET  /api/logs?since=<ms>&status=<bucket>&kind=<llm|surveysparrow|internal>
 //                &provider=<name>&q=<text>&limit=<n>
 //      Returns: { entries: ApiLogSummary[], stats: { ... } }
 //
 // DELETE /api/logs
-//      Empties both ring buffers. Returns: { ok: true }.
+//      Removes the caller's entries from both ring buffers. Returns: { ok: true }.
 //
-// Both gated by the same auth middleware that wraps every /api/* route.
-// No payload data is returned here — that's a separate per-id endpoint so
-// the list view stays cheap.
+// There is no auth in front of this route. The buffer is shared by everyone
+// hitting the same server instance, so both handlers only touch entries
+// recorded under the caller's log session cookie (lib/server/log-session.ts).
+// A request without the cookie sees nothing. No payload data is returned
+// here — that's a separate per-id endpoint so the list view stays cheap.
 
 import { NextResponse, type NextRequest } from "next/server";
 import {
@@ -19,6 +21,7 @@ import {
   type ApiLogKind,
   type ApiLogStatus,
 } from "@/lib/server/api-log-buffer";
+import { readLogSession } from "@/lib/server/log-session";
 
 export const runtime = "nodejs";
 
@@ -33,9 +36,20 @@ const KNOWN_STATUSES: ReadonlyArray<ApiLogStatus | "all"> = [
   "in_progress",
 ];
 
+// Same caps as a real session, zero counts. The caps don't depend on the
+// session, so reading them via a placeholder owner is safe.
+const EMPTY_STATS = stats("");
+
 const KNOWN_KINDS: ReadonlyArray<ApiLogKind> = ["llm", "surveysparrow", "internal"];
 
 export async function GET(req: NextRequest) {
+  const owner = readLogSession(req);
+  if (!owner) {
+    return NextResponse.json(
+      { entries: [], stats: EMPTY_STATS },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  }
   const params = req.nextUrl.searchParams;
 
   const sinceRaw = params.get("since");
@@ -58,7 +72,7 @@ export async function GET(req: NextRequest) {
   const limitRaw = params.get("limit");
   const limit = limitRaw ? Number.parseInt(limitRaw, 10) : undefined;
 
-  const entries = listLogs({
+  const entries = listLogs(owner, {
     since: Number.isFinite(since) ? since : undefined,
     status,
     kind,
@@ -68,12 +82,13 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json(
-    { entries, stats: stats() },
+    { entries, stats: stats(owner) },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
 
-export async function DELETE() {
-  clearLogs();
+export async function DELETE(req: NextRequest) {
+  const owner = readLogSession(req);
+  if (owner) clearLogs(owner);
   return NextResponse.json({ ok: true });
 }

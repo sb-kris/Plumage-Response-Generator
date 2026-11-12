@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { withLogSession } from "@/lib/server/log-session";
 import { fetchAllPages } from "@/lib/surveysparrow/pagination";
 import { buildGroupedQuestions, type Question } from "@/lib/surveysparrow/types";
 import { getRegion, type SurveySparrowRegion } from "@/lib/surveysparrow/regions";
@@ -11,7 +12,7 @@ interface QuestionsRequest {
   surveyId?: number | string;
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   let body: QuestionsRequest;
   try {
     body = await req.json();
@@ -65,3 +66,6 @@ export async function POST(req: NextRequest) {
     truncated: Boolean(result.truncated),
   });
 }
+
+// Logs this route's upstream calls under the caller's browser session.
+export const POST = withLogSession(handlePOST);

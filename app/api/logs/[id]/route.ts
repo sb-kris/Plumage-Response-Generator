@@ -2,20 +2,24 @@
 //
 // GET /api/logs/{id}
 //   Returns the full request/response bodies + headers for one entry, if
-//   still present in tier 2 (PAYLOAD_CAP=50). If the entry has been evicted,
-//   returns 404 so the UI can render "Payload expired — only summary retained".
+//   still present in tier 2 (see PAYLOAD_CAP in lib/server/api-log-buffer.ts)
+//   AND recorded under the caller's log session cookie. Evicted entries and
+//   other sessions' entries both return the same 404, so ids from someone
+//   else's session can't be probed.
 
 import { NextResponse, type NextRequest } from "next/server";
 import { getFullPayload } from "@/lib/server/api-log-buffer";
+import { readLogSession } from "@/lib/server/log-session";
 
 export const runtime = "nodejs";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const payload = getFullPayload(id);
+  const owner = readLogSession(req);
+  const payload = owner ? getFullPayload(owner, id) : null;
   if (!payload) {
     return NextResponse.json(
       { ok: false, error: "The request and response for this call are no longer stored. The server only keeps them for recent calls." },

@@ -195,9 +195,11 @@ export default function ApiLogsPage() {
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">API logs</h1>
         <p className="max-w-3xl text-sm text-muted-foreground">
-          Every call made to your AI provider and SurveySparrow, plus calls to
-          this app&apos;s own API. Logs are kept in server memory (the counts
-          are shown below) and are cleared when the server restarts.
+          Every call this browser made to your AI provider and SurveySparrow,
+          plus calls to this app&apos;s own API. Other people using Plumage
+          can&apos;t see these, and you can&apos;t see theirs. Logs are kept in
+          server memory (the counts are shown below) and are cleared when the
+          server restarts.
         </p>
       </header>
 

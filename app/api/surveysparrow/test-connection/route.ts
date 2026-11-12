@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { withLogSession } from "@/lib/server/log-session";
 import { surveySparrowFetch } from "@/lib/surveysparrow/client";
 import type { SurveyListResponse } from "@/lib/surveysparrow/types";
 import { getRegion, type SurveySparrowRegion } from "@/lib/surveysparrow/regions";
@@ -23,7 +24,7 @@ interface TestRequest {
   apiKey?: string;
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   let body: TestRequest;
   try {
     body = await req.json();
@@ -94,3 +95,6 @@ function toAccount(res: AccountInfoResponse | undefined) {
     active: d.account_status !== false,
   };
 }
+
+// Logs this route's upstream calls under the caller's browser session.
+export const POST = withLogSession(handlePOST);
