@@ -15,6 +15,7 @@
 // never logged, never stored.
 
 import { NextResponse, type NextRequest } from "next/server";
+import { withLogSession } from "@/lib/server/log-session";
 import { callLLMForJson } from "@/lib/llm/json-call";
 import { callAnthropicWithSearch } from "@/lib/llm/json-call-anthropic-search";
 import { buildSetupAssistantPrompt } from "@/lib/llm/prompts/setup-assistant-prompt";
@@ -50,7 +51,7 @@ const ALLOWED_PROVIDERS: ReadonlySet<LLMProvider> = new Set([
   "openrouter",
 ]);
 
-export async function POST(req: NextRequest): Promise<NextResponse<SetupAssistantResponse>> {
+async function handlePOST(req: NextRequest): Promise<NextResponse<SetupAssistantResponse>> {
   let body: SetupAssistantRequest;
   try {
     body = (await req.json()) as SetupAssistantRequest;
@@ -264,3 +265,6 @@ function validateRequest(body: SetupAssistantRequest): string | null {
 
   return null;
 }
+
+// Logs this route's upstream calls under the caller's browser session.
+export const POST = withLogSession(handlePOST);

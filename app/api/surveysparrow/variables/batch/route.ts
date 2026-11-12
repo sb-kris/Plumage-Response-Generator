@@ -23,6 +23,7 @@
 // never persisted or logged.
 
 import { NextResponse, type NextRequest } from "next/server";
+import { withLogSession } from "@/lib/server/log-session";
 import { surveySparrowFetch } from "@/lib/surveysparrow/client";
 import { getRegion, type SurveySparrowRegion } from "@/lib/surveysparrow/regions";
 
@@ -72,7 +73,7 @@ interface BatchResponse {
   error?: string;
 }
 
-export async function POST(req: NextRequest): Promise<NextResponse<BatchResponse | { ok: false; error: string; status?: number; created?: never; failed?: never; surveyId?: never }>> {
+async function handlePOST(req: NextRequest): Promise<NextResponse<BatchResponse | { ok: false; error: string; status?: number; created?: never; failed?: never; surveyId?: never }>> {
   let body: RequestBody;
   try {
     body = (await req.json()) as RequestBody;
@@ -216,3 +217,6 @@ export async function POST(req: NextRequest): Promise<NextResponse<BatchResponse
     failed,
   });
 }
+
+// Logs this route's upstream calls under the caller's browser session.
+export const POST = withLogSession(handlePOST);

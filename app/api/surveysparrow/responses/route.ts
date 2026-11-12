@@ -13,6 +13,7 @@
 // never stored or logged.
 
 import { NextResponse, type NextRequest } from "next/server";
+import { withLogSession } from "@/lib/server/log-session";
 import { surveySparrowFetch } from "@/lib/surveysparrow/client";
 import { getRegion, type SurveySparrowRegion } from "@/lib/surveysparrow/regions";
 import type {
@@ -38,7 +39,7 @@ interface PushBatchRequest {
   payload?: SSBatchPayload;
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   let body: PushBatchRequest;
   try {
     body = await req.json();
@@ -335,3 +336,6 @@ function firstString(...candidates: unknown[]): string | undefined {
   }
   return undefined;
 }
+
+// Logs this route's upstream calls under the caller's browser session.
+export const POST = withLogSession(handlePOST);

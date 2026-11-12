@@ -16,6 +16,7 @@
 // logged, and are scoped to this request only.
 
 import { type NextRequest } from "next/server";
+import { withLogSession } from "@/lib/server/log-session";
 import {
   generateResponses,
   type GenerateResponsesInput,
@@ -55,7 +56,7 @@ interface RequestBody {
   };
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   let body: RequestBody;
   try {
     body = (await req.json()) as RequestBody;
@@ -236,3 +237,6 @@ function jsonError(status: number, message: string) {
     headers: { "Content-Type": "application/json" },
   });
 }
+
+// Logs this route's upstream calls under the caller's browser session.
+export const POST = withLogSession(handlePOST);

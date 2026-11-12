@@ -29,9 +29,18 @@
 //
 // SECURITY: API keys MUST NOT land in the buffer. The instrumenters scrub
 // `Authorization` / `x-api-key` / `api-key` / `Bearer` tokens from headers
-// before recording. The buffer itself enforces this via `scrubHeaders()`.
+// before recording. The buffer itself enforces this via `scrubHeaders()`,
+// and `scrubEndpoint()` redacts key-like query parameters in URLs.
+//
+// SCOPING: the buffer is shared by every browser hitting this instance, so
+// every entry is tagged with the caller's log session (see ./log-session.ts)
+// and the readers only return the caller's own entries. Calls made outside a
+// `withLogSession` scope have no owner and are not recorded at all, since no
+// one could read them back. The caps below are still global: heavy traffic
+// from one SE can evict another SE's older entries.
 
 import { randomUUID } from "node:crypto";
+import { currentLogSession } from "./log-session";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -125,8 +134,19 @@ const ERROR_MESSAGE_LIMIT = 500;
 // for eviction. Map gives us O(1) lookup by id which is what the
 // `/api/logs/[id]` endpoint needs.
 
-const summaries: ApiLogSummary[] = [];
-const payloads = new Map<string, ApiLogFullPayload>();
+// `owner` is the log session id. It stays inside this module; readers return
+// the bare summary/payload.
+interface StoredSummary {
+  owner: string;
+  entry: ApiLogSummary;
+}
+interface StoredPayload {
+  owner: string;
+  payload: ApiLogFullPayload;
+}
+
+const summaries: StoredSummary[] = [];
+const payloads = new Map<string, StoredPayload>();
 const payloadOrder: string[] = []; // FIFO eviction queue
 
 // ---------------------------------------------------------------------------
@@ -153,18 +173,25 @@ export interface BeginLogInput {
  */
 export function beginLog(input: BeginLogInput): string {
   const id = randomUUID();
+  const owner = currentLogSession();
+  if (!owner) {
+    // Not inside a withLogSession-wrapped route. Returning an id that was
+    // never stored makes the matching finishLog a no-op.
+    warnUnscoped(input.endpoint);
+    return id;
+  }
   const summary: ApiLogSummary = {
     id,
     startedAt: Date.now(),
     kind: input.kind,
     provider: input.provider,
     method: input.method.toUpperCase(),
-    endpoint: input.endpoint,
+    endpoint: scrubEndpoint(input.endpoint),
     status: "in_progress",
     hasFullPayload: Boolean(input.requestBody || input.requestHeaders),
     contextLabel: input.contextLabel,
   };
-  appendSummary(summary);
+  appendSummary({ owner, entry: summary });
 
   if (input.requestBody || input.requestHeaders) {
     const headers = scrubHeaders(input.requestHeaders ?? {});
@@ -172,10 +199,13 @@ export function beginLog(input: BeginLogInput): string {
       input.requestBody,
     );
     putPayload({
-      id,
-      requestHeaders: headers,
-      requestBody,
-      requestTruncated,
+      owner,
+      payload: {
+        id,
+        requestHeaders: headers,
+        requestBody,
+        requestTruncated,
+      },
     });
   }
 
@@ -199,10 +229,10 @@ export interface FinishLogInput {
  * response into tier 2 if we still have the entry there.
  */
 export function finishLog(input: FinishLogInput): void {
-  const idx = summaries.findIndex((s) => s.id === input.id);
-  if (idx < 0) return; // already evicted from tier 1; nothing to update
+  const idx = summaries.findIndex((s) => s.entry.id === input.id);
+  if (idx < 0) return; // never recorded, or evicted from tier 1
   const now = Date.now();
-  const summary = summaries[idx]!;
+  const summary = summaries[idx]!.entry;
   summary.finishedAt = now;
   summary.durationMs = now - summary.startedAt;
   summary.httpStatus = input.httpStatus;
@@ -223,9 +253,12 @@ export function finishLog(input: FinishLogInput): void {
     );
     payloads.set(input.id, {
       ...existing,
-      responseHeaders: headers,
-      responseBody,
-      responseTruncated,
+      payload: {
+        ...existing.payload,
+        responseHeaders: headers,
+        responseBody,
+        responseTruncated,
+      },
     });
     summary.hasFullPayload = true;
   }
@@ -263,13 +296,15 @@ export interface ListLogsFilter {
   limit?: number;
 }
 
-export function listLogs(filter: ListLogsFilter = {}): ApiLogSummary[] {
+/** The given log session's entries, newest first. */
+export function listLogs(owner: string, filter: ListLogsFilter = {}): ApiLogSummary[] {
   const limit = Math.max(1, Math.min(SUMMARY_CAP, filter.limit ?? SUMMARY_CAP));
   const q = filter.query?.toLowerCase().trim() || null;
   const out: ApiLogSummary[] = [];
   // Iterate newest-first (we always append, so reverse-iterate the array).
   for (let i = summaries.length - 1; i >= 0; i--) {
-    const s = summaries[i]!;
+    if (summaries[i]!.owner !== owner) continue;
+    const s = summaries[i]!.entry;
     if (filter.since !== undefined && s.startedAt <= filter.since) continue;
     if (filter.status && filter.status !== "all" && s.status !== filter.status) continue;
     if (filter.kind && s.kind !== filter.kind) continue;
@@ -284,25 +319,41 @@ export function listLogs(filter: ListLogsFilter = {}): ApiLogSummary[] {
   return out;
 }
 
-export function getFullPayload(id: string): ApiLogFullPayload | null {
-  return payloads.get(id) ?? null;
+/** Full payload for one entry, or null if it was evicted or belongs to
+ *  another log session (the caller can't tell the two apart). */
+export function getFullPayload(owner: string, id: string): ApiLogFullPayload | null {
+  const stored = payloads.get(id);
+  return stored && stored.owner === owner ? stored.payload : null;
 }
 
-export function clearLogs(): void {
-  summaries.length = 0;
-  payloads.clear();
-  payloadOrder.length = 0;
+/** Remove the given log session's entries. Other sessions' entries stay. */
+export function clearLogs(owner: string): void {
+  for (let i = summaries.length - 1; i >= 0; i--) {
+    if (summaries[i]!.owner === owner) summaries.splice(i, 1);
+  }
+  for (let i = payloadOrder.length - 1; i >= 0; i--) {
+    const id = payloadOrder[i]!;
+    if (payloads.get(id)?.owner === owner) {
+      payloads.delete(id);
+      payloadOrder.splice(i, 1);
+    }
+  }
 }
 
-export function stats(): {
+/** Counts for the given log session. Caps are shared by all sessions. */
+export function stats(owner: string): {
   summaryCount: number;
   payloadCount: number;
   summaryCap: number;
   payloadCap: number;
 } {
+  let summaryCount = 0;
+  for (const s of summaries) if (s.owner === owner) summaryCount++;
+  let payloadCount = 0;
+  for (const p of payloads.values()) if (p.owner === owner) payloadCount++;
   return {
-    summaryCount: summaries.length,
-    payloadCount: payloads.size,
+    summaryCount,
+    payloadCount,
     summaryCap: SUMMARY_CAP,
     payloadCap: PAYLOAD_CAP,
   };
@@ -312,24 +363,24 @@ export function stats(): {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-function appendSummary(s: ApiLogSummary): void {
+function appendSummary(s: StoredSummary): void {
   summaries.push(s);
   while (summaries.length > SUMMARY_CAP) {
     summaries.shift();
   }
 }
 
-function putPayload(p: ApiLogFullPayload): void {
-  payloads.set(p.id, p);
-  payloadOrder.push(p.id);
+function putPayload(p: StoredPayload): void {
+  payloads.set(p.payload.id, p);
+  payloadOrder.push(p.payload.id);
   while (payloadOrder.length > PAYLOAD_CAP) {
     const oldest = payloadOrder.shift();
     if (oldest) {
       payloads.delete(oldest);
       // Also flip the summary's hasFullPayload flag so the UI doesn't
       // promise a payload that no longer exists. The summary itself stays.
-      const sIdx = summaries.findIndex((s) => s.id === oldest);
-      if (sIdx >= 0) summaries[sIdx]!.hasFullPayload = false;
+      const sIdx = summaries.findIndex((s) => s.entry.id === oldest);
+      if (sIdx >= 0) summaries[sIdx]!.entry.hasFullPayload = false;
     }
   }
 }
@@ -364,6 +415,39 @@ export function scrubHeaders(headers: Record<string, string>): Record<string, st
     }
   }
   return out;
+}
+
+// Query parameters that carry credentials (e.g. Gemini's `?key=`). The
+// instrumenters already log endpoints without them; this is the backstop.
+const SECRET_QUERY_PARAM_PATTERN = /^(key|api[-_]?key|token|access[-_]?token)$/i;
+
+function scrubEndpoint(endpoint: string): string {
+  let url: URL;
+  try {
+    url = new URL(endpoint);
+  } catch {
+    return endpoint; // a bare path, nothing to scrub
+  }
+  let changed = false;
+  for (const name of [...url.searchParams.keys()]) {
+    if (SECRET_QUERY_PARAM_PATTERN.test(name)) {
+      url.searchParams.set(name, "REDACTED");
+      changed = true;
+    }
+  }
+  return changed ? url.toString() : endpoint;
+}
+
+let warnedUnscoped = false;
+
+function warnUnscoped(endpoint: string): void {
+  if (warnedUnscoped || process.env.NODE_ENV === "production") return;
+  warnedUnscoped = true;
+  console.warn(
+    `[api-log-buffer] Not logging ${endpoint}: the call ran outside withLogSession, ` +
+      "so it has no owner. Wrap the route handler with withLogSession " +
+      "(lib/server/log-session.ts) to show its calls on the API Logs page.",
+  );
 }
 
 function trim(text: string | undefined): { text?: string; truncated?: boolean } {

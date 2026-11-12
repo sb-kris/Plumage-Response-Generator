@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { withLogSession } from "@/lib/server/log-session";
 import { fetchAllPages } from "@/lib/surveysparrow/pagination";
 import type { Survey } from "@/lib/surveysparrow/types";
 import { getRegion, type SurveySparrowRegion } from "@/lib/surveysparrow/regions";
@@ -12,7 +13,7 @@ interface SurveysRequest {
   includeArchived?: boolean;
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   let body: SurveysRequest;
   try {
     body = await req.json();
@@ -91,3 +92,6 @@ function isUnsupportedSurveyType(type: string | null | undefined): boolean {
   const normalized = type.toLowerCase().replace(/[^a-z0-9]/g, "");
   return UNSUPPORTED_SURVEY_TYPES.has(normalized);
 }
+
+// Logs this route's upstream calls under the caller's browser session.
+export const POST = withLogSession(handlePOST);

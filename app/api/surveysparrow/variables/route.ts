@@ -15,6 +15,7 @@
 // and never stored or logged.
 
 import { NextResponse, type NextRequest } from "next/server";
+import { withLogSession } from "@/lib/server/log-session";
 import { fetchAllPages } from "@/lib/surveysparrow/pagination";
 import { getRegion, type SurveySparrowRegion } from "@/lib/surveysparrow/regions";
 import type { SurveySparrowVariableSummary } from "@/lib/generation/setup-assistant-types";
@@ -39,7 +40,7 @@ interface RawSSVariable {
   [key: string]: unknown;
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   let body: VariablesRequest;
   try {
     body = await req.json();
@@ -162,3 +163,6 @@ function detectPersonaBinding(raw: RawSSVariable): string | undefined {
   const match = blob.match(/persona\.[a-zA-Z_][a-zA-Z0-9_]*/);
   return match ? match[0] : undefined;
 }
+
+// Logs this route's upstream calls under the caller's browser session.
+export const POST = withLogSession(handlePOST);
